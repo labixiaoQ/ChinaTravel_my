@@ -15,8 +15,8 @@ modifying the benchmark package. Official running and evaluation scripts such as
   scripts.
 - `agent_env/SKILL.md`: Codex skill instructions for using the CLI to solve benchmark
   queries.
-- `agent_env/scripts/solve_one_with_codex.py`: one-query harness that loads a query,
-  calls `codex exec`, saves the plan, and evaluates it.
+- `agent_env/scripts/solve_split_with_codex.py`: split harness that loads queries,
+  calls `codex exec`, saves plans, and evaluates them.
 
 ## Prerequisites
 
@@ -88,26 +88,49 @@ world attractions_keys('上海')
 quit
 ```
 
-## One-Query Codex Harness
+## Codex Split Harness
 
-Run Codex non-interactively on one query and evaluate the output:
-
-```bash
-python agent_env/scripts/solve_one_with_codex.py --split easy
-```
-
-Use a specific query or model:
+Create a local config from the tracked example:
 
 ```bash
-python agent_env/scripts/solve_one_with_codex.py --split easy --uid <uid>
-python agent_env/scripts/solve_one_with_codex.py --split easy --codex-model gpt-5
+cp agent_env/config.toml.example agent_env/config.toml
 ```
+
+Edit `agent_env/config.toml` to set the split, method/output directory, smoke-test
+limit, model, provider, and API key or API key env var. The local config is
+ignored by git because it may contain a secret.
+
+Run Codex non-interactively over the configured split and evaluate each output:
+
+```bash
+python agent_env/scripts/solve_split_with_codex.py
+```
+
+Smoke test the configured split with the config's `limit` value:
+
+```bash
+python agent_env/scripts/solve_split_with_codex.py
+```
+
+Use a specific query or override the configured model from the CLI:
+
+```bash
+python agent_env/scripts/solve_split_with_codex.py --uid <uid>
+python agent_env/scripts/solve_split_with_codex.py --codex-model gpt-5
+python agent_env/scripts/solve_split_with_codex.py --resume
+```
+
+Set `resume = true` under `[run]` in `agent_env/config.toml` to skip queries
+that already have `results/<method>/<uid>.json`. Parse failures are saved as
+all-false one-query evaluations, and the run reports the parse failure count at
+the end.
 
 The harness writes:
 
 - prompt and raw Codex logs under `agent_env/runs/<split>_<uid>/`
-- the itinerary under `results/codex_cli/<uid>.json`
+- the itinerary under `results/<method>/<uid>.json`
 - the one-query evaluation under `agent_env/runs/<split>_<uid>/evaluation.json`
+- the split summary under `agent_env/runs/<split>_summary.json`
 
 It loads oracle fields internally for judging, but removes them from the query shown to
 Codex. The nested `codex exec` workspace is also set to the run directory, with the

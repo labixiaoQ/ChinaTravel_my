@@ -12,3 +12,4 @@ your_tpc_scores.json
 uv.lock
 .venv
 agent_env/runs
+agent_env/config.toml

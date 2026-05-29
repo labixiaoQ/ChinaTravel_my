@@ -39,7 +39,7 @@
 
 - Added `agent_env/SKILL.md` with Codex-oriented instructions for solving
   ChinaTravel queries through the local CLI.
-- Added `agent_env/scripts/solve_one_with_codex.py`, a one-query harness that:
+- Added `agent_env/scripts/solve_split_with_codex.py`, a Codex harness that:
   loads a query with oracle verifier fields for judging, hides oracle fields from
   the Codex prompt, calls `codex exec` non-interactively, saves the resulting plan
   under `results/<method>/<uid>.json`, and evaluates schema, commonsense, and hard

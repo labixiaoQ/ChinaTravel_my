@@ -96,22 +96,23 @@ Intercity activities also need `start`, `end`, `tickets`, and `TrainID` or
 `FlightID`. Attraction activities need `position` and `tickets`.
 Accommodation activities need `position`, `room_type`, and `rooms`.
 
-## One-Query Automation
+## Split Automation
 
-Use the bundled harness to load one query, call Codex non-interactively, save the
-plan under `results/<method>/<uid>.json`, and evaluate it:
+Use the bundled harness to load a configured split, call Codex non-interactively,
+save plans under `results/<method>/<uid>.json`, and evaluate them:
 
 ```bash
-python agent_env/scripts/solve_one_with_codex.py --split easy
+python agent_env/scripts/solve_split_with_codex.py --split easy
 ```
 
 Useful options:
 
 ```bash
-python agent_env/scripts/solve_one_with_codex.py --split easy --uid <uid>
-python agent_env/scripts/solve_one_with_codex.py --split easy --codex-model gpt-5
-python agent_env/scripts/solve_one_with_codex.py --split easy --timeout 900
-python agent_env/scripts/solve_one_with_codex.py --split easy --no-run-codex
+python agent_env/scripts/solve_split_with_codex.py --split easy --uid <uid>
+python agent_env/scripts/solve_split_with_codex.py --split easy --codex-model gpt-5
+python agent_env/scripts/solve_split_with_codex.py --split easy --timeout 900
+python agent_env/scripts/solve_split_with_codex.py --split easy --limit 1
+python agent_env/scripts/solve_split_with_codex.py --split easy --no-run-codex
 ```
 
 The harness hides oracle verifier fields from Codex, but keeps them internally
