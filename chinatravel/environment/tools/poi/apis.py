@@ -1,22 +1,15 @@
 import os
 import json
+from chinatravel.environment.language import CITY_SLUGS, city_names, normalize_lang, relative_database_path
 
 
 class Poi:
-    def __init__(self, base_path: str = "../../database/poi/", en_version=False):
+    def __init__(self, base_path: str = None, en_version=False, lang=None):
 
-        city_list = [
-            "beijing",
-            "shanghai",
-            "nanjing",
-            "suzhou",
-            "hangzhou",
-            "shenzhen",
-            "chengdu",
-            "wuhan",
-            "guangzhou",
-            "chongqing",
-        ]
+        self.lang = normalize_lang(lang, en_version=en_version)
+        if base_path is None:
+            base_path = relative_database_path(self.lang, "poi")
+        city_list = CITY_SLUGS
         curdir = os.path.dirname(os.path.realpath(__file__))
         data_path_list = [
             os.path.join(curdir, f"{base_path}/{city}/poi.json") for city in city_list
@@ -33,26 +26,16 @@ class Poi:
             # self.data[city] = [
             #     (x["name"], tuple(x["position"])) for x in self.data[city]
             # ]
-        city_cn_list = [
-            "北京",
-            "上海",
-            "南京",
-            "苏州",
-            "杭州",
-            "深圳",
-            "成都",
-            "武汉",
-            "广州",
-            "重庆",
-        ]
+        city_cn_list = city_names(self.lang)
         for i, city in enumerate(city_list):
             self.data[city_cn_list[i]] = self.data.pop(city)
         self.city_cn_list = city_cn_list
         self.city_list = city_list
 
     def search(self, city: str, name: str):
-        if city in self.city_list:
-            city = self.city_cn_list[self.city_list.index(city)]
+        city_key = city.lower() if isinstance(city, str) else city
+        if city_key in self.city_list:
+            city = self.city_cn_list[self.city_list.index(city_key)]
         city_data = self.data[city]
         try:
             return city_data[name]

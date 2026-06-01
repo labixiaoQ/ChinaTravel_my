@@ -72,7 +72,7 @@ class AbstractAgent(ABC):
     def __call__(self, query):
         self._reset()  # Default reset, reset env, ans and log
         self.reset()  # Reset the agent, just those added in the subclass
-        
+
         return_info = self.run(query)
 
         if not isinstance(return_info, AgentReturnInfo):
@@ -119,6 +119,7 @@ from agent.load_model import init_llm
 class BaseAgent:
     def __init__(self, name, **kwargs):
         self.name = name
+        self.lang = kwargs.get("lang", "zh")
 
         self.env = kwargs.get('env', None)
 
@@ -127,7 +128,7 @@ class BaseAgent:
             os.makedirs(self.log_dir)
             print(f"Created log directory: {self.log_dir}")
 
-        
+
         model = kwargs.get('backbone_llm', None)
         if type(model) == str:
             self.backbone_llm = init_llm(model)
@@ -135,7 +136,7 @@ class BaseAgent:
             self.backbone_llm = model
         self.model_name = self.backbone_llm.name
 
-        
+
         self.llm_inference_time_count = 0
         self.start_clock = 0
 
@@ -150,4 +151,4 @@ class BaseAgent:
     def reset(self):
         """Reset the agent."""
         raise NotImplementedError
-    
+

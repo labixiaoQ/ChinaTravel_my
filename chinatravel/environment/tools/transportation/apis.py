@@ -4,6 +4,7 @@ import heapq
 from geopy.distance import geodesic
 
 from chinatravel.environment.tools.poi.apis import Poi
+from chinatravel.environment.language import CITY_SLUGS, city_names, normalize_lang, relative_database_path
 
 
 def get_lines_and_stations(city, SUBWAY_PATH):
@@ -137,35 +138,16 @@ def calculate_cost(distance):
 
 class Transportation:
     def __init__(
-        self, base_path: str = "../../database/transportation/", en_version=False
+        self, base_path: str = None, en_version=False, lang=None
     ):
-        self.city_list = [
-            "shanghai",
-            "beijing",
-            "shenzhen",
-            "guangzhou",
-            "chongqing",
-            "suzhou",
-            "chengdu",
-            "hangzhou",
-            "wuhan",
-            "nanjing",
-        ]
-        self.city_list_chinese = [
-            "上海",
-            "北京",
-            "深圳",
-            "广州",
-            "重庆",
-            "苏州",
-            "成都",
-            "杭州",
-            "武汉",
-            "南京",
-        ]
+        self.lang = normalize_lang(lang, en_version=en_version)
+        if base_path is None:
+            base_path = relative_database_path(self.lang, "transportation")
+        self.city_list = CITY_SLUGS
+        self.city_list_chinese = city_names(self.lang)
 
         curdir = os.path.dirname(os.path.realpath(__file__))
-        SUBWAY_PATH = os.path.join(curdir, base_path + "subways.json")
+        SUBWAY_PATH = os.path.join(curdir, base_path, "subways.json")
         self.city_stations_dict = {}
         self.city_lines_dict = {}
         self.city_station_to_line = {}
@@ -181,7 +163,7 @@ class Transportation:
         for city in self.city_list:
             self.graphs[city] = build_graph(self.city_lines_dict[city])
 
-        self.poi_search = Poi()
+        self.poi_search = Poi(lang=self.lang)
 
     def goto(self, city, start, end, start_time, transport_type, verbose=False):
         if transport_type not in ["walk", "metro", "taxi"]:
@@ -193,6 +175,8 @@ class Transportation:
         city_cn = city
         if city in self.city_list_chinese:
             city = self.city_list[self.city_list_chinese.index(city)]
+        elif isinstance(city, str) and city.lower() in self.city_list:
+            city = city.lower()
         locationA_name, locationB_name = locationA, locationB
         locationA, locationB = coordinate_A, coordinate_B
         transports = []
@@ -286,7 +270,7 @@ class Transportation:
                 transports.append(
                     {
                         "start": locationA_name,
-                        "end": stationA["name"] + "-地铁站",
+                        "end": stationA["name"] + self._metro_station_suffix(),
                         "mode": "walk",
                         "start_time": start_time,
                         "end_time": end_timeA,
@@ -296,8 +280,8 @@ class Transportation:
                 )
                 transports.append(
                     {
-                        "start": stationA["name"] + "-地铁站",
-                        "end": stationB["name"] + "-地铁站",
+                        "start": stationA["name"] + self._metro_station_suffix(),
+                        "end": stationB["name"] + self._metro_station_suffix(),
                         "mode": "metro",
                         "start_time": end_timeA,
                         "end_time": end_timeB,
@@ -307,7 +291,7 @@ class Transportation:
                 )
                 transports.append(
                     {
-                        "start": stationB["name"] + "-地铁站",
+                        "start": stationB["name"] + self._metro_station_suffix(),
                         "end": locationB_name,
                         "mode": "walk",
                         "start_time": end_timeB,
@@ -319,18 +303,21 @@ class Transportation:
                 if verbose:
                     print(
                         "Walk: From starting point to metro {}, Distance: {}.".format(
-                            stationA["name"] + "-地铁站", distanceA
+                            stationA["name"] + self._metro_station_suffix(), distanceA
                         )
                     )
                     print(
-                        f"Subway: From {stationA['name'] + '-地铁站'} to {stationB['name'] + '-地铁站'}: {' -> '.join(shortest_path)}"
+                        f"Subway: From {stationA['name'] + self._metro_station_suffix()} to {stationB['name'] + self._metro_station_suffix()}: {' -> '.join(shortest_path)}"
                     )
                     print("The cost of subway: {}¥".format(cost))
                     print(
                         "Walk: From metro {} to ending point,  Distance: {}.".format(
-                            stationB["name"] + "-地铁站", distanceB
+                            stationB["name"] + self._metro_station_suffix(), distanceB
                         )
                     )
                 return transports
             else:
                 raise NotImplementedError
+
+    def _metro_station_suffix(self):
+        return "-Metro Station" if self.lang == "en" else "-地铁站"

@@ -6,6 +6,7 @@ sys.path.append("../..")
 from environment.tools import *
 from pandas import DataFrame
 from typing import Any
+from chinatravel.environment.language import city_names, normalize_lang
 
 
 class EnvOutput:
@@ -86,29 +87,19 @@ class WorldEnv:
     Provide APIs to access the virtual world.
     """
 
-    def __init__(self, en_version=False):
+    def __init__(self, en_version=False, lang=None):
         """
         Initialize the world environment.
         """
 
-        self.support_cities = [
-            "上海",
-            "北京",
-            "深圳",
-            "广州",
-            "重庆",
-            "苏州",
-            "成都",
-            "杭州",
-            "武汉",
-            "南京",
-        ]
-        self.attractions = Attractions()
-        self.accommodations = Accommodations()
-        self.restaurants = Restaurants()
-        self.intercitytransport = IntercityTransport()
-        self.transportation = Transportation()
-        self.poi = Poi()
+        self.lang = normalize_lang(lang, en_version=en_version)
+        self.support_cities = city_names(self.lang)
+        self.attractions = Attractions(lang=self.lang)
+        self.accommodations = Accommodations(lang=self.lang)
+        self.restaurants = Restaurants(lang=self.lang)
+        self.intercitytransport = IntercityTransport(lang=self.lang)
+        self.transportation = Transportation(lang=self.lang)
+        self.poi = Poi(lang=self.lang)
 
         self.results = []
 
@@ -182,7 +173,7 @@ print(test_env("attractions_keys('上海')"))
 APIs for the World Environment:
 (1) attractions_keys(city: str)
 Description: Returns a list of (key, type) pairs of the attractions data.
-Parameters: 
+Parameters:
 city: The city name.
 (2) attractions_select(city: str, key: str, func: Callable):
 Description: Returns a DataFrame with data filtered by the specified key with the specified function.
@@ -198,29 +189,29 @@ id: The ID of the attraction.
 time: The time to check, in the format 'HH:MM'.
 (4) attractions_nearby(city: str, point: str, topk: int, dist: float):
 Description: Returns the top K attractions within the specified distance of the location.
-Parameters: 
+Parameters:
 city: The city name.
 point: The name of the location.
 topk: The number of attractions to return.
 dist: The maximum distance from the location, default is 2.
 (5) attractions_types(city: str):
 Description: Returns a list of unique attraction types.
-Parameters: 
+Parameters:
 city: The city name.
 
 (6) accommodations_keys(city: str):
 Description: Returns a list of (key, type) pairs of the accommodations data.
-Parameters: 
+Parameters:
 city: The city name.
 (7) accommodations_select(city: str, key: str = "", func: Callable):
 Description: Returns a DataFrame with data filtered by the specified key with the specified function.
-Parameters: 
+Parameters:
 city: The city name.
 key: The key column to filter, only one key can be used. If not specified, return all data.
 func: The lambda function applied to the key column, must return a boolean value. Only apply to one key. If not specified, return all data.
 (8) accommodations_nearby(city: str, point: str, topk: int, dist: float):
 Description: Returns the top K accommodations within the specified distance of the location.
-Parameters: 
+Parameters:
 city: The city name.
 point: The name of the location.
 topk: The number of accommodations to return.
@@ -228,39 +219,39 @@ dist: The maximum distance from the location, default is 5.
 
 (9) restaurants_keys(city: str):
 Description: Returns a list of (key, type) pairs of the restaurants data.
-Parameters: 
+Parameters:
 city: The city name.
 (10) restaurants_select(city: str, key: str = "", func: Callable):
-Description: Returns a DataFrame with data filtered by the specified key with the specified function. 
+Description: Returns a DataFrame with data filtered by the specified key with the specified function.
 city: The city name.
 key: The key column to filter, only one key can be used. If not specified, return all data.
 func: The lambda function applied to the key column, must return a boolean value. Only apply to one key. If not specified, return all data.
 (11) restaurants_id_is_open(city: str, id: int, time: str):
 Description: Returns whether the restaurant with the specified ID is open at the specified time and day.
-Parameters: 
+Parameters:
 city: The city name.
 id: The ID of the restaurant.
 time: The time to check, in the format 'HH:MM'.
 (12) restaurants_nearby(city: str, point: str, topk: int, dist: float):
 Description: Returns the top K restaurants within the specified distance of the location.
-Parameters: 
+Parameters:
 city: The city name.
 point: The name of the location.
 topk: The number of restaurants to return.
 dist: The maximum distance from the location, default is 2.
 (13) restaurants_restaurants_with_recommended_food(city: str, food: str):
 Description: Returns all restaurants with the specified food in their recommended dishes.
-Parameters: 
+Parameters:
 city: The city name.
 food: The food to search for.
 (14) restaurants_cuisine(city: str):
 Description: Returns a list of unique restaurant cuisines.
-Parameters: 
+Parameters:
 city: The city name.
 
 (15) goto(city: str, start: str, end: str, start_time: str, transport_type: str):
 Description: Returns a list of transportation options between two locations.
-Parameters: 
+Parameters:
 city: The city name.
 start: The start point's name. Must be a location name and match the data exactly.
 end: The end point's name. Must be a location name and match the data exactly.

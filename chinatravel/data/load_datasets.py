@@ -12,6 +12,8 @@ project_root_path = os.path.dirname(
 if project_root_path not in sys.path:
     sys.path.insert(0, project_root_path)
 
+from chinatravel.environment.language import normalize_lang
+
 
 class NpEncoder(json.JSONEncoder):
     def default(self, obj):
@@ -26,6 +28,7 @@ class NpEncoder(json.JSONEncoder):
 
 def load_query_local(args, version="", verbose=False):
     query_data = {}
+    lang = normalize_lang(getattr(args, "lang", None))
 
     # split_config_file = 'default_splits/{}.txt'.format(args.splits)
 
@@ -49,6 +52,8 @@ def load_query_local(args, version="", verbose=False):
         print(query_id_list)
 
     data_dir = os.path.join(project_root_path, "chinatravel", "data")
+    if lang == "en":
+        data_dir = os.path.join(data_dir, "en")
 
     dir_list = os.listdir(data_dir)
     for dir_i in dir_list:
@@ -94,7 +99,10 @@ def save_json_file(json_data, file_path):
 
 
 def load_query(args):
-    
+    lang = normalize_lang(getattr(args, "lang", None))
+    if lang == "en":
+        return load_query_local(args)
+
     if not args.splits in ["easy", "medium", "human", "preference_base50",
                            "preference0_base50", "preference1_base50", "preference2_base50",
                            "preference3_base50", "preference4_base50", "preference5_base50"]:
@@ -108,16 +116,16 @@ def load_query(args):
     # elif args.splits in ["human1000"]:
     #     config_name = "test"
     query_data = hg_load_dataset("LAMDA-NeSy/ChinaTravel", name=config_name)[args.splits].to_list()
-    
+
 
     for data_i in query_data:
         if "hard_logic_py" in data_i:
             data_i["hard_logic_py"] = ast.literal_eval(data_i["hard_logic_py"])
-    
+
     query_id_list = [data_i["uid"] for data_i in query_data]
     data_dict = {}
     for data_i in query_data:
-        if not args.oracle_translation:
+        if not getattr(args, "oracle_translation", False):
             if "hard_logic" in data_i:
                 del data_i["hard_logic"]
             if "hard_logic_py" in data_i:
@@ -133,6 +141,7 @@ def load_query(args):
 import argparse
 argparser = argparse.ArgumentParser()
 argparser.add_argument("--splits", type=str, default="easy")
+argparser.add_argument("--lang", type=str, choices=["zh", "en"], default="zh")
 
 if __name__ == "__main__":
 
@@ -155,4 +164,4 @@ if __name__ == "__main__":
             print(uid, query_data[uid])
         else:
             raise ValueError(f"{uid} not in query_data")
-    
+

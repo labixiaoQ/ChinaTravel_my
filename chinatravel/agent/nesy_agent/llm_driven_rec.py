@@ -28,10 +28,10 @@ from chinatravel.agent.nesy_agent.prompts import (
     HOTEL_RANKING_INSTRUCTION,
     ATTRACTION_RANKING_INSTRUCTION,
     RESTAURANT_RANKING_INSTRUCTION,
-    SELECT_POI_TIME_INSTRUCTION, 
-    ROOMS_PLANNING_INSTRUCTION, 
-    BUDGETS_INSTRUCTION, 
-    INNERCITY_TRANSPORTS_SELECTION_INSTRUCTION, 
+    SELECT_POI_TIME_INSTRUCTION,
+    ROOMS_PLANNING_INSTRUCTION,
+    BUDGETS_INSTRUCTION,
+    INNERCITY_TRANSPORTS_SELECTION_INSTRUCTION,
 )
 from chinatravel.agent.nesy_agent.nesy_agent import NesyAgent
 
@@ -41,6 +41,22 @@ class LLMDrivenAgent(NesyAgent):
     def __init__(self, **kwargs):
         kwargs["method"] = "LLMNeSy"
         super().__init__(**kwargs)
+        if self.lang == "en":
+            from chinatravel.agent.nesy_agent.prompts import prompts_en
+
+            for prompt_name in [
+                "NEXT_POI_TYPE_INSTRUCTION",
+                "INTERCITY_TRANSPORT_GO_INSTRUCTION",
+                "INTERCITY_TRANSPORT_BACK_INSTRUCTION",
+                "HOTEL_RANKING_INSTRUCTION",
+                "ATTRACTION_RANKING_INSTRUCTION",
+                "RESTAURANT_RANKING_INSTRUCTION",
+                "SELECT_POI_TIME_INSTRUCTION",
+                "ROOMS_PLANNING_INSTRUCTION",
+                "BUDGETS_INSTRUCTION",
+                "INNERCITY_TRANSPORTS_SELECTION_INSTRUCTION",
+            ]:
+                globals()[prompt_name] = getattr(prompts_en, prompt_name)
         # self.ret=Retriever()
         self.ranking_attractions_flag= False
         self.ranking_restaurants_flag= False
@@ -48,8 +64,8 @@ class LLMDrivenAgent(NesyAgent):
     def ranking_intercity_transport_go(self, transport_info, query):
 
         time_before = time.time()
-        
-        query_message=[{"role": "user", "content": INTERCITY_TRANSPORT_GO_INSTRUCTION.format(user_requirements=query, transport_info=str(transport_info))}]        
+
+        query_message=[{"role": "user", "content": INTERCITY_TRANSPORT_GO_INSTRUCTION.format(user_requirements=query, transport_info=str(transport_info))}]
         answer = self.backbone_llm(query_message,one_line=False)
 
         self.llm_inference_time_count += time.time() - time_before
@@ -61,7 +77,7 @@ class LLMDrivenAgent(NesyAgent):
         # if match:
         try:
             intercity_transport_list = eval(match.group(1))
-            print('selected intercity_transports: ',intercity_transport_list) 
+            print('selected intercity_transports: ',intercity_transport_list)
             # print(intercity_transport_list)
 
             ranking_idx = []
@@ -91,18 +107,18 @@ class LLMDrivenAgent(NesyAgent):
             price_ranking = np.argsort(np.array(price_list))
 
             ranking_idx = np.argsort(time_ranking + price_ranking)
-    
+
         return ranking_idx
-        
-        
-            
-            
+
+
+
+
     def ranking_intercity_transport_back(self, transport_info, query, selected_go):
 
 
         time_before = time.time()
         query_message=[{"role": "user", "content": INTERCITY_TRANSPORT_BACK_INSTRUCTION.format(user_requirements=query, transport_info=str(transport_info), selected_go_info=str(selected_go))}]
-        
+
         answer = self.backbone_llm(query_message,one_line=False)
 
         self.llm_inference_time_count += time.time() - time_before
@@ -113,7 +129,7 @@ class LLMDrivenAgent(NesyAgent):
         # if match:
         try:
             intercity_transport_list = eval(match.group(1))
-            print('selected intercity_transports: ',intercity_transport_list) 
+            print('selected intercity_transports: ',intercity_transport_list)
 
             # print(intercity_transport_list)
 
@@ -123,14 +139,14 @@ class LLMDrivenAgent(NesyAgent):
                     selected_index = transport_info['FlightID']==cand_i
                 else:
                     selected_index = transport_info['TrainID']==cand_i
-                
+
                 if np.any(selected_index):
                     selected_index = np.where(selected_index)[0][0]
                     ranking_idx.append(selected_index)
         except Exception as e:
             print("!!!Error in eval intercity_transport_list", e)
             self.llm_rec_format_error += 1
-            
+
         # else:
             time_list = transport_info["BeginTime"].tolist()
             sorted_lst = sorted(enumerate(time_list), key=lambda x: x[1])
@@ -146,11 +162,11 @@ class LLMDrivenAgent(NesyAgent):
             ranking_idx = np.argsort(time_ranking + price_ranking)
 
         return ranking_idx
-    
+
     def ranking_hotel(self, hotel_info, query):
-        
+
         print(hotel_info.head())
-        
+
         hotel_info = hotel_info.drop(columns=["hotelname_en"])
 
         time_before = time.time()
@@ -164,20 +180,20 @@ class LLMDrivenAgent(NesyAgent):
 
         print(answer)
         match = re.search(r'HotelNameList:\s*\[(.*?)\]', answer, re.DOTALL)
-        
+
         ranking_idx = []
         # if match:
         try:
             HotelNameList = re.findall(r'"([^"]+)"', match.group(1))
-    
-            print('selected HotelNameList: ',HotelNameList) 
+
+            print('selected HotelNameList: ',HotelNameList)
             for cand_i in HotelNameList:
                 selected_index = np.where(hotel_info['name']==cand_i)[0][0]
                 ranking_idx.append(selected_index)
         except:
             print("!!!Error in eval HotelNameList")
             self.llm_rec_format_error += 1
-            
+
             cost_list = hotel_info["price"].tolist()
             sorted_lst = sorted(zip(range(len(hotel_info["price"])), cost_list), key=lambda x: x[1])
             sorted_indices = [index for index, value in sorted_lst]
@@ -186,29 +202,29 @@ class LLMDrivenAgent(NesyAgent):
                     ranking_idx.append(r_i)
 
         return ranking_idx
-    
-    
 
-    
+
+
+
     def select_and_add_breakfast(self, plan, poi_plan, current_day, current_time, current_position):
-        
+
         # have breakfast at hotel
         plan[current_day]["activities"] = self.add_poi(plan[current_day]["activities"], poi_plan["accommodation"]["name"], "breakfast", 0, 0, "08:00", "08:30", innercity_transports=[])
         return plan
 
     def select_next_poi_type(self, candidates_type, plan, poi_plan, current_day, current_time, current_position):
-        
+
         if current_day == self.query["days"]-1:
             if time_compare_if_earlier_equal(poi_plan["back_transport"]["BeginTime"], add_time_delta(current_time, 180)):
                 return "back-intercity-transport", ["back-intercity-transport"]
-        
+
         time_before = time.time()
         query_message=[{"role": "user", "content": NEXT_POI_TYPE_INSTRUCTION.format(self.query['nature_language'], poi_plan,current_day+1, current_time, current_position,candidates_type)}]
         answer=self.backbone_llm(query_message,one_line=False)
 
         self.llm_rec_count += 1
 
-        
+
         self.llm_inference_time_count += time.time() - time_before
 
         poi_type=None
@@ -217,25 +233,25 @@ class LLMDrivenAgent(NesyAgent):
             poi_type = match.group(1)
         else:
             self.llm_rec_format_error += 1
-            
+
         if poi_type is not None and poi_type in candidates_type:
             return poi_type, candidates_type
         else:
             print("The selected POI type is not in the candidate POI type list.")
             return candidates_type[0], candidates_type
-        
-        
-    
+
+
+
     def ranking_attractions(self, plan, poi_plan, current_day, current_time, current_position, intercity_with_hotel_cost):
-        
+
         if self.ranking_attractions_flag:
             pass
         else:
-            
+
             # print(self.memory["attractions"])
 
             attr_info = self.memory["attractions"][["name","type","opentime","endtime","price"]]
-            
+
             time_before = time.time()
             query_message=[{"role": "user", "content": ATTRACTION_RANKING_INSTRUCTION.format(user_requirements=self.query['nature_language'], attraction_info=str(attr_info), past_cost=intercity_with_hotel_cost)}]
             answer=self.backbone_llm(query_message,one_line=False)
@@ -250,8 +266,8 @@ class LLMDrivenAgent(NesyAgent):
                     attraction_list = eval(match.group(1))
                 except:
                     print("!!!Error in eval attraction_list")
-            print('selected attractions: ',attraction_list)    
-            self.suggested_attractions_from_query = attraction_list  
+            print('selected attractions: ',attraction_list)
+            self.suggested_attractions_from_query = attraction_list
             self.ranking_attractions_flag = True
 
         attraction_list = self.suggested_attractions_from_query
@@ -269,7 +285,7 @@ class LLMDrivenAgent(NesyAgent):
             else:
                 transports_sel = self.collect_innercity_transport(self.query["target_city"], current_position, attr_info.iloc[i]["name"], current_time, "walk")
                 attr_dist.append(transports_sel[0]["distance"])
-        
+
 
         ranking_dist = np.argsort(np.array(attr_dist))
 
@@ -278,14 +294,14 @@ class LLMDrivenAgent(NesyAgent):
                 attr_i = attr_info[attr_info["name"] == selected_i].index
                 ranking_price[attr_i] = -len(attraction_list) + id
                 ranking_dist[attr_i] = -len(attraction_list) + id
-            
+
 
         ranking_idx = np.argsort(ranking_price + ranking_dist)
-        
+
         return ranking_idx
-    
+
     def ranking_restaurants(self, plan, poi_plan, current_day, current_time, current_position, intercity_with_hotel_cost):
-        
+
         if self.ranking_restaurants_flag:
             pass
         else:
@@ -296,7 +312,7 @@ class LLMDrivenAgent(NesyAgent):
             query_message=[{"role": "user", "content": RESTAURANT_RANKING_INSTRUCTION.format(user_requirements=self.query['nature_language'], restaurant_info=str(res_info), past_cost=intercity_with_hotel_cost, days=self.query['days'])}]
             answer=self.backbone_llm(query_message,one_line=False)
 
-            
+
             self.llm_inference_time_count += time.time() - time_before
 
             print(answer)
@@ -307,10 +323,10 @@ class LLMDrivenAgent(NesyAgent):
                     restaurant_list = eval(match.group(1))
                 except:
                     print("!!!Error in eval restaurant_list")
-            print('selected restaurants: ',restaurant_list)  
-            self.suggested_restaurants_from_query = restaurant_list  
+            print('selected restaurants: ',restaurant_list)
+            self.suggested_restaurants_from_query = restaurant_list
             self.ranking_restaurants_flag = True
-        
+
         restaurant_list = self.suggested_restaurants_from_query
         num_restaurants = len(self.memory["restaurants"])
         res_info = self.memory["restaurants"]
@@ -327,7 +343,7 @@ class LLMDrivenAgent(NesyAgent):
             else:
                 transports_sel = self.collect_innercity_transport(self.query["target_city"], current_position, res_info.iloc[i]["name"], current_time, "walk")
                 attr_dist.append(transports_sel[0]["distance"])
-        
+
 
         ranking_dist = np.argsort(np.array(attr_dist))
 
@@ -336,21 +352,21 @@ class LLMDrivenAgent(NesyAgent):
                 res_i = res_info[res_info["name"] == selected_i].index
                 ranking_price[res_i] = -len(restaurant_list) + id
                 ranking_dist[res_i] = -len(restaurant_list) + id
-            
+
 
         ranking_idx = np.argsort(ranking_price + ranking_dist)
-        
+
 
         return ranking_idx
-    
+
     def select_poi_time(self, plan, poi_plan, current_day, start_time, poi_name, poi_type, recommended_visit_time):
-        
+
         return 90
         time_before = time.time()
 
         query_message=[{"role": "user", "content": SELECT_POI_TIME_INSTRUCTION.format(user_requirements=self.query['nature_language'], current_travel_plans=poi_plan,
-                                                                                      current_date=current_day+1, current_time=start_time, 
-                                                                                      current_poi=poi_name, poi_type=poi_type, recommended_visit_time=recommended_visit_time, 
+                                                                                      current_date=current_day+1, current_time=start_time,
+                                                                                      current_poi=poi_name, poi_type=poi_type, recommended_visit_time=recommended_visit_time,
                                                                                       back_transport_time=poi_plan["back_transport"]["BeginTime"])}]
         answer=self.backbone_llm(query_message,one_line=False)
 
@@ -366,7 +382,7 @@ class LLMDrivenAgent(NesyAgent):
         except:
             poi_time = 90
         return poi_time
-    
+
     def decide_rooms(self, query):
 
         time_before = time.time()
@@ -376,13 +392,13 @@ class LLMDrivenAgent(NesyAgent):
 
 
         self.llm_inference_time_count += time.time() - time_before
-        
+
         self.llm_rec_count += 1
 
         room_info_pattern = re.compile(r'RoomInfo:\s*\[\s*(\d+|\-1)\s*,\s*(\d+|\-1)\s*\]')
-    
+
         match = room_info_pattern.search(answer)
-    
+
         if match:
             num_rooms = int(match.group(1))
             num_beds = int(match.group(2))
@@ -395,8 +411,8 @@ class LLMDrivenAgent(NesyAgent):
             num_rooms, num_beds = None, None
 
             self.llm_rec_format_error += 1
-        
-        
+
+
         # print(answer)
         print("extracted room_number: ", num_rooms, "room_type:", num_beds)
         return num_rooms, num_beds
@@ -413,9 +429,9 @@ class LLMDrivenAgent(NesyAgent):
         self.llm_rec_count += 1
 
         budget_pattern = r"Budget: (\d+)"
-    
+
         match = re.search(budget_pattern, answer)
-    
+
         if match:
             budget = int(match.group(1))
             if budget < 1:
@@ -425,17 +441,17 @@ class LLMDrivenAgent(NesyAgent):
             budget = None
 
             self.llm_rec_format_error += 1
-        
-        
+
+
         # print(answer)
         print("extracted budget: ", budget)
         # exit(0)
         return budget
-    
+
     def ranking_innercity_transport_from_query(self, query):
-        
+
         time_before = time.time()
-        
+
         query_message=[{"role": "user", "content": INNERCITY_TRANSPORTS_SELECTION_INSTRUCTION.format(user_requirements=query['nature_language'])}]
         answer=self.backbone_llm(query_message,one_line=False)
 
@@ -454,7 +470,7 @@ class LLMDrivenAgent(NesyAgent):
                 self.llm_rec_format_error += 1
                 TransportRanking = []
 
-            print('selected TransportRanking: ',TransportRanking) 
+            print('selected TransportRanking: ',TransportRanking)
             rank_ = []
             for item in TransportRanking:
                 if item in ["metro", "taxi", "walk"]:
@@ -504,7 +520,7 @@ if __name__ == '__main__':
         llm = GLM4Plus()
 
     method = "LLMNeSy"
-    
+
     method = method + "_" + args.llm
 
     if args.oracle_translation:
@@ -524,7 +540,7 @@ if __name__ == '__main__':
 
     succ_count = 0
     for i, data_idx in enumerate(query_index):
-        
+
         print("Process [{}/{}], Success [{}/{}]: \n--------------------\n".format(i, len(query_index), succ_count, len(query_index)))
         if args.skip_exist and os.path.exists(os.path.join(res_dir, f"{data_idx}.json")):
             continue
@@ -533,7 +549,7 @@ if __name__ == '__main__':
         symbolic_input = query_data[data_idx]
         print(symbolic_input)
 
-        
+
         succ, plan = agent.run(symbolic_input, load_cache=True, oralce_translation=args.oracle_translation)
         # print(plan)
         # print(succ)

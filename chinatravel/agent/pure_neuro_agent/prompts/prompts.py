@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import json
-from agent.pure_neuro_agent.prompts.examples import *
+from .examples import *
 
 import os
 
@@ -27,7 +27,7 @@ func_doc = """
 
 (1) attractions_keys(city: str)
 Description: Returns a list of (key, type) pairs of the attractions data.
-Parameters: 
+Parameters:
 city: The city name.
 (2) attractions_select(city: str, key, func: Callable = lambda x: True):
 Description: Returns a DataFrame with data filtered by the specified key with the specified function.
@@ -43,29 +43,29 @@ id: The ID of the attraction.
 time: The time to check, in the format 'HH:MM'.
 (4) attractions_nearby(city: str, point: str, topk: int, dist: float = 2):
 Description: Returns the top K attractions within the specified distance of the location.
-Parameters: 
+Parameters:
 city: The city name.
 point: The name of the location.
 topk: The number of attractions to return.
 dist: The maximum distance from the location, default is 2.
 (5) attractions_types(city: str):
 Description: Returns a list of unique attraction types.
-Parameters: 
+Parameters:
 city: The city name.
 
 (6) accommodations_keys(city: str):
 Description: Returns a list of (key, type) pairs of the accommodations data.
-Parameters: 
+Parameters:
 city: The city name.
 (7) accommodations_select(city: str, key, func: Callable = lambda x: True):
 Description: Returns a DataFrame with data filtered by the specified key with the specified function.
-Parameters: 
+Parameters:
 city: The city name.
 key: The key column to filter, only one key can be used.
 func: The lambda function applied to the key column, must return a boolean value. Only apply to one key. If not specified, return all data.
 (8) accommodations_nearby(city: str, point: str, topk: int, dist: float = 5):
 Description: Returns the top K accommodations within the specified distance of the location.
-Parameters: 
+Parameters:
 city: The city name.
 point: The name of the location.
 topk: The number of accommodations to return.
@@ -73,39 +73,39 @@ dist: The maximum distance from the location, default is 5.
 
 (9) restaurants_keys(city: str):
 Description: Returns a list of (key, type) pairs of the restaurants data.
-Parameters: 
+Parameters:
 city: The city name.
 (10) restaurants_select(city: str, key, func: Callable = lambda x: True):
-Description: Returns a DataFrame with data filtered by the specified key with the specified function. 
+Description: Returns a DataFrame with data filtered by the specified key with the specified function.
 city: The city name.
 key: The key column to filter, only one key can be used.
 func: The lambda function applied to the key column, must return a boolean value. Only apply to one key. If not specified, return all data.
 (11) restaurants_id_is_open(city: str, id: int, time: str):
 Description: Returns whether the restaurant with the specified ID is open at the specified time and day.
-Parameters: 
+Parameters:
 city: The city name.
 id: The ID of the restaurant.
 time: The time to check, in the format 'HH:MM'.
 (12) restaurants_nearby(city: str, point: str, topk: int, dist: float = 2):
 Description: Returns the top K restaurants within the specified distance of the location.
-Parameters: 
+Parameters:
 city: The city name.
 point: The name of the location.
 topk: The number of restaurants to return.
 dist: The maximum distance from the location, default is 2.
 (13) restaurants_with_recommended_food(city: str, food: str):
 Description: Returns all restaurants with the specified food in their recommended dishes.
-Parameters: 
+Parameters:
 city: The city name.
 food: The food to search for.
 (14) restaurants_cuisine(city: str):
 Description: Returns a list of unique restaurant cuisines.
-Parameters: 
+Parameters:
 city: The city name.
 
 (15) goto(city: str, start: str, end: str, start_time: str, transport_type: str):
 Description: Returns a list of transportation options between two locations.
-Parameters: 
+Parameters:
 city: The city name.
 start: The start point's name. Must be a location name and match the data exactly.
 end: The end point's name. Must be a location name and match the data exactly.
@@ -134,7 +134,7 @@ Return: The transportation information between two cities sorted by leaving time
 
 
 (19) next_page():
-Description: Get the next page of the latest Result history if it exists. Because of the length limited, all returned DataFrame information is split into 10 rows per page. You can use this function to get the next page of the Result history. Only DataFrame information can be split into multiple pages. The function should not be used too often, otherwise, you will soon run out of steps. 
+Description: Get the next page of the latest Result history if it exists. Because of the length limited, all returned DataFrame information is split into 10 rows per page. You can use this function to get the next page of the Result history. Only DataFrame information can be split into multiple pages. The function should not be used too often, otherwise, you will soon run out of steps.
 Parameters:
 None
 
@@ -154,11 +154,11 @@ Before select, you need to use xxx_keys(city) to get the keys of the data, and t
 
 You must finish your response within 30 steps including plan, otherwise the system will terminate your response. If you note down too often, you will soon run out of steps. But you can note down multiple pieces of information as a string and then write them all at once.
 
-You must select the transportation, dining, attractions, and accommodation information you need to plan your trip and write them in the notebook. The costs, time, locations and both inner and intercity transportation information must be written in the notebook. 
+You must select the transportation, dining, attractions, and accommodation information you need to plan your trip and write them in the notebook. The costs, time, locations and both inner and intercity transportation information must be written in the notebook.
 
-So, please be careful with your response and just search and note down the information you need. 
+So, please be careful with your response and just search and note down the information you need.
 
-If you live in hotel A and want to go to attraction B, you must notedown the transport information between hotel A and attraction B before planning and the you want to have a meal in restaurant C, you must write down the transportation information between attraction B and restaurant C before planning. Absolutely, you also must notedown the information about the hotel A, attraction B, restaurant C, and the innercity transportation between them. Every day need to be planned in detail, including the meals, attractions, accommodations, and transportation. The plan should be detailed and reasonable, if not specified by user's query, every day should be planned with two or three meals, a reasonable number of attractions, maybe 2-4. The accommodation should be a continuous stay if not specified by user's query. The transportation should be reasonable and the cost should be within the budget. Before plan, think about if there is any information missing in the notebook, if so, you need to search and note down the information. If only one day is planned, accommodation is not necessary. 
+If you live in hotel A and want to go to attraction B, you must notedown the transport information between hotel A and attraction B before planning and the you want to have a meal in restaurant C, you must write down the transportation information between attraction B and restaurant C before planning. Absolutely, you also must notedown the information about the hotel A, attraction B, restaurant C, and the innercity transportation between them. Every day need to be planned in detail, including the meals, attractions, accommodations, and transportation. The plan should be detailed and reasonable, if not specified by user's query, every day should be planned with two or three meals, a reasonable number of attractions, maybe 2-4. The accommodation should be a continuous stay if not specified by user's query. The transportation should be reasonable and the cost should be within the budget. Before plan, think about if there is any information missing in the notebook, if so, you need to search and note down the information. If only one day is planned, accommodation is not necessary.
 
 ### EXAMPLE ###
 Thought[1]: 用户的指令中，提到和朋友一起，所以是两个人一起，餐饮地铁这些费用都需要*2, 景点一般也是，此外如果有打车需要，一般多人与一人的开销相同。用户希望多坐地铁，因此如果地铁可以到达，尽可能让用户坐地铁，如果乘坐地铁前后需要步行的距离太远，可以考虑在预算范围内打车前往这些地铁不便到达的目的地。另外用户喜欢吃江浙菜，我需要了解一些南京的江浙菜餐馆，用于安排用户的餐饮。首先我需要规划用户从北京抵达南京的方案。<STOP>
@@ -193,7 +193,7 @@ You must finish your response within 30 steps including plan, otherwise the syst
 
 Select the transportation, dining, attractions, and accommodation information you need to plan your trip and write them in the notebook. Not EVERYTHING is needed, only what you need to plan the trip. For example, when you get ten or more accommodations, you only need to note down the information of the accommodation you want to stay in, usually one, and note it down in the notebook. You must not note down all the accommodations information. And usually, 2-4 attractions are enough for one day.
 
-What you note down in the notebook should be a plan or plans for days. May be notedown(description = "Day 1(Day 1 morning is also acceptable)", content = "At 8:00, have breakfast at hotel A, then go to attraction B, using metro(together with the cost, time, stations and other information). Attracion B will cost xxx yuan and xxx hours. Then go to restaurant C for lunch, using taxi(together with the cost, time, distance and other information). Restaurant C will cost xxx yuan.(another attraction is possiple too as long as there is enough time and budget). Then... ###More details here###.") 
+What you note down in the notebook should be a plan or plans for days. May be notedown(description = "Day 1(Day 1 morning is also acceptable)", content = "At 8:00, have breakfast at hotel A, then go to attraction B, using metro(together with the cost, time, stations and other information). Attracion B will cost xxx yuan and xxx hours. Then go to restaurant C for lunch, using taxi(together with the cost, time, distance and other information). Restaurant C will cost xxx yuan.(another attraction is possiple too as long as there is enough time and budget). Then... ###More details here###.")
 
 Do not forget to note down the ###transportation information between locations### before planning. Intercity transportation information should be notedown before planning too.
 You need to plan for each day in detail. If only one day is planned, accommodation is not needed. If more than one day is planned, accommodation is necessary. Nights in accommodations should be days-1. For example, if you plan for 3 days, you need to note down 2 nights in accommodations. Do not forget to note down the transportation information between locations before planning. Both going and returning transportation information should be notedown.
@@ -219,7 +219,7 @@ You must finish your response within 30 steps including plan.
 
 Select the transportation, dining, attractions, and accommodation information you need to plan your trip and write them in the notebook. Not EVERYTHING is needed, only what you need to plan the trip. For example, when you get ten or more accommodations, you only need to note down the information of the accommodation you want to stay in, usually one, and note it down in the notebook. You must not note down all the accommodations information. And usually, 2-4 attractions are enough for one day.
 
-What you note down in the notebook should be a plan or plans for days. May be notedown(description = "Day 1(Day 1 morning is also acceptable)", content = "At 8:00, have breakfast at hotel A, then go to attraction B, using metro(together with the cost, time, stations and other information). Attracion B will cost xxx yuan and xxx hours. Then go to restaurant C for lunch, using taxi(together with the cost, time, distance and other information). Restaurant C will cost xxx yuan.(another attraction is possiple too as long as there is enough time and budget). Then... ###More details here###.") 
+What you note down in the notebook should be a plan or plans for days. May be notedown(description = "Day 1(Day 1 morning is also acceptable)", content = "At 8:00, have breakfast at hotel A, then go to attraction B, using metro(together with the cost, time, stations and other information). Attracion B will cost xxx yuan and xxx hours. Then go to restaurant C for lunch, using taxi(together with the cost, time, distance and other information). Restaurant C will cost xxx yuan.(another attraction is possiple too as long as there is enough time and budget). Then... ###More details here###.")
 
 Limination of the plan:
 1. Breakfast can be in the hotel for free and must be in 6:00-9:00, lunch must be in 11:00-13:00, dinner must be in 17:00-20:00.
@@ -265,7 +265,7 @@ You must finish your response within 50 steps including plan, otherwise the syst
 
 Select the transportation, dining, attractions, and accommodation information you need to plan your trip and write them in the notebook. Not EVERYTHING is needed, only what you need to plan the trip. For example, when you get ten or more accommodations, you only need to note down the information of the accommodation you want to stay in, usually one, and note it down in the notebook. You must not note down all the accommodations information. And usually, 2-4 attractions are enough for one day.
 
-What you note down in the notebook should be a plan or plans for days. May be notedown(description = "Day 1(Day 1 morning is also acceptable)", content = "At 8:00, have breakfast at hotel A, then go to attraction B, using metro(together with the cost, time, stations and other information). Attracion B will cost xxx yuan and xxx hours. Then go to restaurant C for lunch, using taxi(together with the cost, time, distance and other information). Restaurant C will cost xxx yuan.(another attraction is possiple too as long as there is enough time and budget). Then... ###More details here###.") 
+What you note down in the notebook should be a plan or plans for days. May be notedown(description = "Day 1(Day 1 morning is also acceptable)", content = "At 8:00, have breakfast at hotel A, then go to attraction B, using metro(together with the cost, time, stations and other information). Attracion B will cost xxx yuan and xxx hours. Then go to restaurant C for lunch, using taxi(together with the cost, time, distance and other information). Restaurant C will cost xxx yuan.(another attraction is possiple too as long as there is enough time and budget). Then... ###More details here###.")
 
 Do not forget to note down the ###transportation information between locations### before planning. Intercity transportation information should be notedown before planning too.
 You need to plan for each day in detail. If only one day is planned, accommodation is not needed. If more than one day is planned, accommodation is necessary. Nights in accommodations should be days-1. For example, if you plan for 3 days, you need to note down 2 nights in accommodations. Do not forget to note down the transportation information between locations before planning. Both going and returning transportation information should be notedown.
@@ -296,7 +296,7 @@ You must finish your response within 30 steps including plan, otherwise the syst
 
 Select the transportation, dining, attractions, and accommodation information you need to plan your trip and write them in the notebook. Not EVERYTHING is needed, only what you need to plan the trip. For example, when you get ten or more accommodations, you only need to note down the information of the accommodation you want to stay in, usually one, and note it down in the notebook. You must not note down all the accommodations information. And usually, 2-4 attractions are enough for one day.
 
-What you note down in the notebook should be a plan or plans for days. May be notedown(description = "Day 1(Day 1 morning is also acceptable)", content = "At 8:00, have breakfast at hotel A, then go to attraction B, using metro(together with the cost, time, stations and other information). Attracion B will cost xxx yuan and xxx hours. Then go to restaurant C for lunch, using taxi(together with the cost, time, distance and other information). Restaurant C will cost xxx yuan.(another attraction is possiple too as long as there is enough time and budget). Then... ###More details here###.") 
+What you note down in the notebook should be a plan or plans for days. May be notedown(description = "Day 1(Day 1 morning is also acceptable)", content = "At 8:00, have breakfast at hotel A, then go to attraction B, using metro(together with the cost, time, stations and other information). Attracion B will cost xxx yuan and xxx hours. Then go to restaurant C for lunch, using taxi(together with the cost, time, distance and other information). Restaurant C will cost xxx yuan.(another attraction is possiple too as long as there is enough time and budget). Then... ###More details here###.")
 
 Do not forget to note down the ###transportation information between locations### before planning. Intercity transportation information should be notedown before planning too.
 You need to plan for each day in detail. If only one day is planned, accommodation is not needed. If more than one day is planned, accommodation is necessary. Nights in accommodations should be days-1. For example, if you plan for 3 days, you need to note down 2 nights in accommodations. Do not forget to note down the transportation information between locations before planning. Both going and returning transportation information should be notedown.
