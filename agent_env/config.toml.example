@@ -33,7 +33,7 @@ tool_call = true
 enable_thinking = false
 
 [codex]
-model = "gpt-5.5"
+model = "qwen3.6-35b-a3b"
 timeout = 900
 sandbox = "workspace-write"
 output_schema = false
