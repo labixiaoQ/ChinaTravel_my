@@ -12,11 +12,11 @@ def init_agent(kwargs):
     )
     if lang == "en":
         from .pure_neuro_agent.prompts.prompts_en import (
-            ZEROSHOT_ACT_INSTRUCTION,
-            ZEROSHOT_REACT_INSTRUCTION,
-            ZEROSHOT_REACT_INSTRUCTION_GLM4,
+            # ZEROSHOT_ACT_INSTRUCTION,
+            # ZEROSHOT_REACT_INSTRUCTION,
+            # ZEROSHOT_REACT_INSTRUCTION_GLM4,
             ONESHOT_REACT_INSTRUCTION,
-            ONESHOT_REACT_INSTRUCTION_GLM4,
+            # ONESHOT_REACT_INSTRUCTION_GLM4,
         )
 
     from .nesy_verifier import LLMModuloAgent
