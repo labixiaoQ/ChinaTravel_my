@@ -9,7 +9,7 @@
   start even before the full benchmark runtime is installed.
 - Added structured JSON tools for attractions, accommodations, restaurants, POI lookup,
   city transportation, intercity transportation, split listing, and query loading.
-- Added a dependency-free stdio MCP-style bridge for Codex-like clients:
+- Added a dependency-free stdio MCP-style bridge for agent clients:
   `python -m agent_env.mcp_stdio`.
 - Added a dependency-free local HTTP service:
   `python -m agent_env.http_server --host 127.0.0.1 --port 8765`.
@@ -37,13 +37,12 @@
 
 ## 2026-05-28
 
-- Added `agent_env/SKILL.md` with Codex-oriented instructions for solving
+- Added `agent_env/SKILL.md` with agent-oriented instructions for solving
   ChinaTravel queries through the local CLI.
-- Added `agent_env/scripts/solve_split_with_codex.py`, a Codex harness that:
+- Added `agent_env/scripts/solve_script_with_harness.py`, an agent harness that:
   loads a query with oracle verifier fields for judging, hides oracle fields from
-  the Codex prompt, calls `codex exec` non-interactively, saves the resulting plan
+  the model prompt, calls the model non-interactively, saves the resulting plan
   under `results/<method>/<uid>.json`, and evaluates schema, commonsense, and hard
   constraints with the official evaluation functions.
-- Updated the harness so nested Codex runs use the per-query run directory as their
-  workspace and add the project root with `--add-dir`, keeping generated Codex
-  metadata out of the repository root.
+- Updated the harness so nested runs use per-query run directories, keeping
+  generated metadata out of the repository root.

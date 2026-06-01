@@ -10,13 +10,13 @@ modifying the benchmark package. Official running and evaluation scripts such as
   `WorldEnv` and returns JSON-serializable results.
 - `agent_env.cli`: dependency-free command-line interface for one-shot calls and
   interactive terminal use.
-- `agent_env.mcp_stdio`: dependency-free stdio MCP-style bridge for Codex-like clients.
+- `agent_env.mcp_stdio`: dependency-free stdio MCP-style bridge for agent clients.
 - `agent_env.http_server`: dependency-free local HTTP JSON service for other agents or
   scripts.
-- `agent_env/SKILL.md`: Codex skill instructions for using the CLI to solve benchmark
+- `agent_env/SKILL.md`: agent instructions for using the CLI to solve benchmark
   queries.
-- `agent_env/scripts/solve_split_with_codex.py`: split harness that loads queries,
-  calls `codex exec`, saves plans, and evaluates them.
+- `agent_env/scripts/solve_script_with_harness.py`: split harness that loads queries,
+  calls OpenCode or Codex, saves plans, and evaluates them.
 
 ## Prerequisites
 
@@ -30,7 +30,7 @@ pip install -r requirements.txt
 The wrapper itself can start without those dependencies, but environment tool calls will
 return initialization errors until the official prerequisites are present.
 
-## Codex/MCP-Style Usage
+## Agent/MCP-Style Usage
 
 Configure the agent client to run:
 
@@ -88,7 +88,7 @@ world attractions_keys('上海')
 quit
 ```
 
-## Codex Split Harness
+## Split Harness
 
 Create a local config from the tracked example:
 
@@ -96,29 +96,35 @@ Create a local config from the tracked example:
 cp agent_env/config.toml.example agent_env/config.toml
 ```
 
-Edit `agent_env/config.toml` to set the split, method/output directory, smoke-test
-limit, model, provider, and API key or API key env var. The local config is
-ignored by git because it may contain a secret.
+Edit `agent_env/config.toml` to set the split, harness, smoke-test limit,
+models, providers, and API key or API key env var. The local config is ignored
+by git because it may contain a secret.
 
-Run Codex non-interactively over the configured split and evaluate each output:
+Run the configured harness non-interactively over the configured split and
+evaluate each output:
 
 ```bash
-python agent_env/scripts/solve_split_with_codex.py
+python agent_env/scripts/solve_script_with_harness.py
 ```
 
 Smoke test the configured split with the config's `limit` value:
 
 ```bash
-python agent_env/scripts/solve_split_with_codex.py
+python agent_env/scripts/solve_script_with_harness.py
 ```
 
 Use a specific query or override the configured model from the CLI:
 
 ```bash
-python agent_env/scripts/solve_split_with_codex.py --uid <uid>
-python agent_env/scripts/solve_split_with_codex.py --codex-model gpt-5
-python agent_env/scripts/solve_split_with_codex.py --resume
+python agent_env/scripts/solve_script_with_harness.py --uid <uid>
+python agent_env/scripts/solve_script_with_harness.py --harness opencode --model dashscope/qwen3.6-27b
+python agent_env/scripts/solve_script_with_harness.py --harness codex --model gpt-5.5
+python agent_env/scripts/solve_script_with_harness.py --resume
 ```
+
+Unless `--method` or `[run].method` is set, result directories use
+`<model>-<split>-<harness>`, for example
+`qwen3.6-27b-generated_5000-opencode`.
 
 Set `resume = true` under `[run]` in `agent_env/config.toml` to skip queries
 that already have `results/<method>/<uid>.json`. Parse failures are saved as
@@ -127,15 +133,15 @@ the end.
 
 The harness writes:
 
-- prompt and raw Codex logs under `agent_env/runs/<split>_<uid>/`
+- prompt and raw harness logs under `agent_env/runs/<method>/<split>_<uid>/`
 - the itinerary under `results/<method>/<uid>.json`
-- the one-query evaluation under `agent_env/runs/<split>_<uid>/evaluation.json`
-- the split summary under `agent_env/runs/<split>_summary.json`
+- the one-query evaluation under `agent_env/runs/<method>/<split>_<uid>/evaluation.json`
+- the split summary under `agent_env/runs/<method>/<split>_summary.json`
 
 It loads oracle fields internally for judging, but removes them from the query shown to
-Codex. The nested `codex exec` workspace is also set to the run directory, with the
-project root added via `--add-dir`, so Codex session metadata stays under the specific
-run instead of the repository root.
+the selected harness. OpenCode runs write a per-run `opencode.json`, capture
+JSONL events, and extract final text into `output.txt`; Codex runs use
+`--output-last-message` to write `output.txt` directly.
 
 ## HTTP Usage
 

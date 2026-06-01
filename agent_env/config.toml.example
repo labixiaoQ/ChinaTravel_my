@@ -1,13 +1,36 @@
 [run]
 split = "easy"
-method = "codex_cli"
-work_dir = "agent_env/runs"
+harness = "opencode"
+method = ""
+work_dir = ""
 tool_python = "UV_CACHE_DIR=/tmp/uv_cache uv run python"
 uid = ""
 limit = 1
-no_run_codex = false
+no_run_harness = false
 resume = false
 plan_file = ""
+
+[opencode]
+model = "dashscope/qwen3.6-27b"
+timeout = 900
+require_output_tags = true
+dangerously_skip_permissions = true
+
+# Keep the real config.toml untracked because this may contain a secret.
+# Either set api_key here in your local config.toml, or leave it empty and
+# export the env var named by api_key_env before running the script.
+api_key = ""
+api_key_env = "DASHSCOPE_API_KEY"
+
+[opencode.provider]
+id = "dashscope"
+name = "DashScope"
+npm = "@ai-sdk/openai-compatible"
+base_url = "https://dashscope.aliyuncs.com/compatible-mode/v1"
+tool_call = true
+
+[opencode.provider.model_options]
+enable_thinking = false
 
 [codex]
 model = "gpt-5.5"
@@ -15,10 +38,6 @@ timeout = 900
 sandbox = "workspace-write"
 output_schema = false
 require_output_tags = true
-
-# Keep the real config.toml untracked because this may contain a secret.
-# Either set api_key here in your local config.toml, or leave it empty and
-# export the env var named by api_key_env before running the script.
 api_key = ""
 api_key_env = "OPENAI_API_KEY"
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Solve ChinaTravel queries with non-interactive Codex and evaluate them."""
+"""Solve ChinaTravel queries with a non-interactive agent harness and evaluate them."""
 
 from __future__ import annotations
 
@@ -87,6 +87,10 @@ def toml_value(value: Any) -> str:
     return str(value)
 
 
+def output_source_name(harness: str) -> str:
+    return "Codex" if harness == "codex" else "OpenCode"
+
+
 def extract_tagged_output(text: str) -> str:
     match = re.search(
         r"<output>\s*(.*?)\s*</output>", text, flags=re.DOTALL | re.IGNORECASE
@@ -94,7 +98,7 @@ def extract_tagged_output(text: str) -> str:
     if not match:
         preview = text.strip()[:500].replace("\n", "\\n")
         raise ValueError(
-            f"Codex output did not contain <output>...</output>. Preview: {preview!r}"
+            f"Agent output did not contain <output>...</output>. Preview: {preview!r}"
         )
     return match.group(1).strip()
 
@@ -111,25 +115,29 @@ def repair_json_text(text: str) -> str:
     return re.sub(r",(\s*[}\]])", r"\1", stripped)
 
 
-def extract_json_object(text: str, *, require_tags: bool = False) -> dict[str, Any]:
+def extract_json_object(
+    text: str, *, require_tags: bool = False, source_name: str = "Agent"
+) -> dict[str, Any]:
     stripped = extract_tagged_output(text) if require_tags else text.strip()
     try:
         value = json.loads(repair_json_text(stripped))
     except json.JSONDecodeError:
         preview = stripped[:500].replace("\n", "\\n")
         raise ValueError(
-            f"Codex output did not contain parseable JSON. Preview: {preview!r}"
+            f"{source_name} output did not contain parseable JSON. Preview: {preview!r}"
         ) from None
     if not isinstance(value, dict):
-        raise ValueError("Codex output was valid JSON but not a JSON object.")
+        raise ValueError(f"{source_name} output was valid JSON but not a JSON object.")
     return value
 
 
 def load_plan_from_output_txt(
-    output_txt_path: Path, require_tags: bool
+    output_txt_path: Path, require_tags: bool, source_name: str
 ) -> dict[str, Any]:
     return extract_json_object(
-        output_txt_path.read_text(encoding="utf-8"), require_tags=require_tags
+        output_txt_path.read_text(encoding="utf-8"),
+        require_tags=require_tags,
+        source_name=source_name,
     )
 
 
@@ -172,50 +180,171 @@ Visible query:
 """
 
 
-def run_codex(
+def provider_model_name(model: str, provider_id: str) -> str:
+    prefix = f"{provider_id}/"
+    if model.startswith(prefix):
+        return model[len(prefix) :]
+    if "/" in model:
+        return model.rsplit("/", 1)[1]
+    return model
+
+
+def build_opencode_config(opencode_config: dict[str, Any], model: str) -> dict[str, Any]:
+    provider = opencode_config.get("provider", {})
+    if not isinstance(provider, dict):
+        raise ValueError("Config section [opencode.provider] must be a table.")
+
+    provider_id = str(provider.get("id") or "dashscope")
+    model_id = provider_model_name(model, provider_id)
+    api_key_env = str(opencode_config.get("api_key_env") or "DASHSCOPE_API_KEY")
+
+    provider_options: dict[str, Any] = {
+        "baseURL": str(provider.get("base_url") or provider.get("baseURL") or ""),
+        "apiKey": f"{{env:{api_key_env}}}",
+    }
+    extra_options = provider.get("options", {})
+    if isinstance(extra_options, dict):
+        provider_options.update(extra_options)
+    if not provider_options["baseURL"]:
+        raise ValueError("[opencode.provider].base_url is required.")
+
+    model_config: dict[str, Any] = {
+        "name": str(provider.get("model_name") or model_id),
+        "tool_call": bool(provider.get("tool_call", True)),
+    }
+    model_options = provider.get("model_options", {})
+    if isinstance(model_options, dict):
+        model_config["options"] = model_options
+
+    return {
+        "$schema": "https://opencode.ai/config.json",
+        "provider": {
+            provider_id: {
+                "npm": str(provider.get("npm") or "@ai-sdk/openai-compatible"),
+                "name": str(provider.get("name") or provider_id),
+                "options": provider_options,
+                "models": {model_id: model_config},
+            }
+        },
+        "model": model if "/" in model else f"{provider_id}/{model}",
+    }
+
+
+def apply_opencode_env(env: dict[str, str], opencode_config: dict[str, Any]) -> None:
+    api_key = opencode_config.get("api_key")
+    api_key_env = str(opencode_config.get("api_key_env") or "DASHSCOPE_API_KEY")
+    if api_key:
+        env[api_key_env] = str(api_key)
+
+
+def extract_opencode_text(stdout: str) -> str:
+    text_parts = []
+    for line in stdout.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            event = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if event.get("type") != "text":
+            continue
+        part = event.get("part", {})
+        if isinstance(part, dict) and isinstance(part.get("text"), str):
+            text_parts.append(part["text"])
+    if not text_parts and stdout.strip():
+        return stdout.strip()
+    return "".join(text_parts).strip()
+
+
+def extract_opencode_error(stdout: str) -> str | None:
+    for line in stdout.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            event = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if event.get("type") != "error":
+            continue
+        error = event.get("error")
+        if isinstance(error, dict):
+            data = error.get("data")
+            if isinstance(data, dict) and data.get("message"):
+                return str(data["message"])
+            if error.get("message"):
+                return str(error["message"])
+            return json.dumps(error, ensure_ascii=False, default=json_default)
+        if error:
+            return str(error)
+        return "OpenCode emitted an error event."
+    return None
+
+
+def run_opencode(
     prompt: str,
     run_dir: Path,
     output_txt_path: Path,
     model: str | None,
     timeout: int,
-    sandbox: str,
-    codex_config: dict[str, Any],
-    output_schema: Path | None,
+    opencode_config: dict[str, Any],
 ) -> subprocess.CompletedProcess[str]:
     run_dir.mkdir(parents=True, exist_ok=True)
+    if not model:
+        raise ValueError("[opencode].model is required.")
+
+    opencode_json_path = run_dir / "opencode.json"
+    write_json(opencode_json_path, build_opencode_config(opencode_config, str(model)))
+
     cmd = [
-        "codex",
-        "exec",
-        "--cd",
-        str(run_dir),
-        "--add-dir",
+        "opencode",
+        "run",
+        "--dir",
         str(PROJECT_ROOT),
-        "--sandbox",
-        sandbox,
-        "--output-last-message",
-        str(output_txt_path),
+        "--model",
+        str(model),
+        "--format",
+        "json",
     ]
-    if output_schema is not None:
-        cmd.extend(["--output-schema", str(output_schema)])
-    if model:
-        cmd.extend(["--model", model])
-    for key, value in build_codex_config_overrides(codex_config):
-        cmd.extend(["--config", f"{key}={toml_value(value)}"])
-    cmd.append("-")
+    if bool(opencode_config.get("dangerously_skip_permissions", True)):
+        cmd.append("--dangerously-skip-permissions")
+    agent = opencode_config.get("agent")
+    if agent:
+        cmd.extend(["--agent", str(agent)])
+    variant = opencode_config.get("variant")
+    if variant:
+        cmd.extend(["--variant", str(variant)])
+    cmd.append(prompt)
 
     env = os.environ.copy()
     env.setdefault("PYTHONIOENCODING", "utf-8")
-    apply_codex_env(env, codex_config)
-    return subprocess.run(
+    env["OPENCODE_CONFIG"] = str(opencode_json_path)
+    apply_opencode_env(env, opencode_config)
+    completed = subprocess.run(
         cmd,
         cwd=run_dir,
         env=env,
         text=True,
-        input=prompt,
         capture_output=True,
         timeout=timeout,
         check=False,
     )
+    opencode_error = extract_opencode_error(completed.stdout)
+    if opencode_error:
+        stderr = completed.stderr
+        if stderr:
+            stderr = f"{stderr.rstrip()}\n{opencode_error}\n"
+        else:
+            stderr = f"{opencode_error}\n"
+        return subprocess.CompletedProcess(
+            completed.args, completed.returncode or 1, completed.stdout, stderr
+        )
+    if completed.returncode == 0:
+        output_txt_path.write_text(
+            extract_opencode_text(completed.stdout), encoding="utf-8"
+        )
+    return completed
 
 
 def apply_codex_env(env: dict[str, str], codex_config: dict[str, Any]) -> None:
@@ -254,6 +383,56 @@ def build_codex_config_overrides(codex_config: dict[str, Any]) -> list[tuple[str
             overrides.append((str(key), value))
 
     return overrides
+
+
+def run_codex(
+    prompt: str,
+    run_dir: Path,
+    output_txt_path: Path,
+    model: str | None,
+    timeout: int,
+    codex_config: dict[str, Any],
+) -> subprocess.CompletedProcess[str]:
+    run_dir.mkdir(parents=True, exist_ok=True)
+    cmd = [
+        "codex",
+        "exec",
+        "--cd",
+        str(run_dir),
+        "--add-dir",
+        str(PROJECT_ROOT),
+        "--sandbox",
+        str(codex_config.get("sandbox") or "workspace-write"),
+        "--output-last-message",
+        str(output_txt_path),
+    ]
+    output_schema = bool(codex_config.get("output_schema", False))
+    if output_schema:
+        cmd.extend(
+            [
+                "--output-schema",
+                str(PROJECT_ROOT / "chinatravel" / "evaluation" / "output_schema.json"),
+            ]
+        )
+    if model:
+        cmd.extend(["--model", model])
+    for key, value in build_codex_config_overrides(codex_config):
+        cmd.extend(["--config", f"{key}={toml_value(value)}"])
+    cmd.append("-")
+
+    env = os.environ.copy()
+    env.setdefault("PYTHONIOENCODING", "utf-8")
+    apply_codex_env(env, codex_config)
+    return subprocess.run(
+        cmd,
+        cwd=run_dir,
+        env=env,
+        text=True,
+        input=prompt,
+        capture_output=True,
+        timeout=timeout,
+        check=False,
+    )
 
 
 def evaluate_one(
@@ -459,20 +638,47 @@ def choose(cli_value: Any, config_value: Any, default: Any) -> Any:
     return default
 
 
+def choose_nonempty(cli_value: Any, config_value: Any, default: Any) -> Any:
+    value = choose(cli_value, config_value, default)
+    if isinstance(value, str) and not value.strip():
+        return default
+    return value
+
+
+def method_model_name(model: str | None) -> str:
+    if not model:
+        return "model"
+    return provider_model_name(str(model), str(model).split("/", 1)[0])
+
+
+def safe_path_component(value: str) -> str:
+    sanitized = re.sub(r"[^A-Za-z0-9._-]+", "_", value.strip())
+    return sanitized.strip("_") or "unnamed"
+
+
+def default_method(model: str | None, split: str, harness: str) -> str:
+    return "-".join(
+        [
+            safe_path_component(method_model_name(model)),
+            safe_path_component(split),
+            safe_path_component(harness),
+        ]
+    )
+
+
 def solve_query(
     *,
+    harness: str,
     split: str,
     uid: str,
     query: dict[str, Any],
     method: str,
     model: str | None,
     timeout: int,
-    sandbox: str,
     work_dir: str,
-    codex_config: dict[str, Any],
-    no_run_codex: bool,
+    harness_config: dict[str, Any],
+    no_run_harness: bool,
     plan_file: str | None,
-    output_schema: Path | None,
     tool_python: str,
     require_output_tags: bool,
 ) -> dict[str, Any] | None:
@@ -494,39 +700,58 @@ def solve_query(
 
     if plan_file:
         plan = read_json(Path(plan_file))
-    elif no_run_codex:
-        print("Skipping Codex call because --no-run-codex was set.")
+    elif no_run_harness:
+        print(f"Skipping {output_source_name(harness)} call because --no-run-harness was set.")
         return None
     else:
-        completed = run_codex(
-            prompt=prompt,
-            run_dir=run_dir,
-            output_txt_path=output_txt_path,
-            model=model,
-            timeout=timeout,
-            sandbox=sandbox,
-            codex_config=codex_config,
-            output_schema=output_schema,
-        )
-        (run_dir / "codex_stdout.txt").write_text(completed.stdout, encoding="utf-8")
-        (run_dir / "codex_stderr.txt").write_text(completed.stderr, encoding="utf-8")
+        if harness == "opencode":
+            completed = run_opencode(
+                prompt=prompt,
+                run_dir=run_dir,
+                output_txt_path=output_txt_path,
+                model=model,
+                timeout=timeout,
+                opencode_config=harness_config,
+            )
+            stdout_path = run_dir / "opencode_stdout.jsonl"
+            stderr_path = run_dir / "opencode_stderr.txt"
+            failure_label = "opencode run"
+        elif harness == "codex":
+            completed = run_codex(
+                prompt=prompt,
+                run_dir=run_dir,
+                output_txt_path=output_txt_path,
+                model=model,
+                timeout=timeout,
+                codex_config=harness_config,
+            )
+            stdout_path = run_dir / "codex_stdout.txt"
+            stderr_path = run_dir / "codex_stderr.txt"
+            failure_label = "codex exec"
+        else:
+            raise ValueError(f"Unsupported harness: {harness}")
+
+        stdout_path.write_text(completed.stdout, encoding="utf-8")
+        stderr_path.write_text(completed.stderr, encoding="utf-8")
         if completed.returncode != 0:
             raise RuntimeError(
-                f"codex exec failed with exit code {completed.returncode}. "
-                f"See {run_dir / 'codex_stdout.txt'} and {run_dir / 'codex_stderr.txt'}."
+                f"{failure_label} failed with exit code {completed.returncode}. "
+                f"See {stdout_path} and {stderr_path}."
             )
         try:
             plan = load_plan_from_output_txt(
-                output_txt_path, require_tags=require_output_tags
+                output_txt_path,
+                require_tags=require_output_tags,
+                source_name=output_source_name(harness),
             )
         except ValueError as exc:
             (run_dir / "parse_error.txt").write_text(str(exc), encoding="utf-8")
             evaluation = failed_evaluation(split, uid, str(exc))
             write_json(eval_path, evaluation)
             print(
-                f"Codex finished but did not produce a JSON plan. "
-                f"See {output_txt_path}, {run_dir / 'codex_stdout.txt'}, "
-                f"{run_dir / 'codex_stderr.txt'}, and {run_dir / 'parse_error.txt'}."
+                f"{output_source_name(harness)} finished but did not produce a JSON plan. "
+                f"See {output_txt_path}, {stdout_path}, {stderr_path}, and "
+                f"{run_dir / 'parse_error.txt'}."
             )
             print(f"Marked parse failure as completely wrong: {eval_path}")
             print(
@@ -549,7 +774,7 @@ def solve_query(
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Load a ChinaTravel split, solve it with codex exec, and evaluate the output."
+        description="Load a ChinaTravel split, solve it with a harness, and evaluate the output."
     )
     parser.add_argument(
         "--config", default=str(DEFAULT_CONFIG_PATH), help="TOML config path."
@@ -569,7 +794,23 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--method",
         default=None,
-        help="Result/eval method directory name. Overrides [run].method.",
+        help="Optional result/eval method override. Default: <model>-<split>-<harness>.",
+    )
+    parser.add_argument(
+        "--harness",
+        choices=["opencode", "codex"],
+        default=None,
+        help="Harness to run. Overrides [run].harness.",
+    )
+    parser.add_argument(
+        "--model",
+        default=None,
+        help="Optional model override for the selected harness.",
+    )
+    parser.add_argument(
+        "--opencode-model",
+        default=None,
+        help="Optional model passed to opencode run. Overrides [opencode].model.",
     )
     parser.add_argument(
         "--codex-model",
@@ -577,24 +818,34 @@ def parse_args() -> argparse.Namespace:
         help="Optional model passed to codex exec. Overrides [codex].model.",
     )
     parser.add_argument(
-        "--timeout", type=int, default=None, help="Codex subprocess timeout in seconds."
-    )
-    parser.add_argument(
-        "--sandbox",
+        "--timeout",
+        type=int,
         default=None,
-        choices=["read-only", "workspace-write", "danger-full-access"],
+        help="OpenCode subprocess timeout in seconds.",
     )
     parser.add_argument(
-        "--no-run-codex",
+        "--no-run-harness",
         action="store_true",
         default=None,
-        help="Load the query and write the prompt, but do not call Codex.",
+        help="Load the query and write the prompt, but do not call the harness.",
     )
     parser.add_argument(
-        "--run-codex",
+        "--run-harness",
         action="store_false",
-        dest="no_run_codex",
-        help="Force Codex on when [run].no_run_codex is true.",
+        dest="no_run_harness",
+        help="Force the harness on when [run].no_run_harness is true.",
+    )
+    parser.add_argument(
+        "--no-run-opencode",
+        action="store_true",
+        default=None,
+        help="Deprecated alias for --no-run-harness.",
+    )
+    parser.add_argument(
+        "--run-opencode",
+        action="store_false",
+        dest="no_run_opencode",
+        help="Deprecated alias for --run-harness.",
     )
     parser.add_argument(
         "--resume",
@@ -616,24 +867,18 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--work-dir",
         default=None,
-        help="Directory for prompts, raw Codex output, and evaluation JSON.",
+        help="Directory for prompts, raw OpenCode output, and evaluation JSON.",
     )
     parser.add_argument(
         "--tool-python",
         default=None,
-        help="Python command Codex should use for agent_env.cli. Overrides [run].tool_python.",
+        help="Python command the harness should use for agent_env.cli. Overrides [run].tool_python.",
     )
     parser.add_argument(
         "--no-require-output-tags",
         action="store_true",
         default=None,
         help="Parse raw JSON without requiring <output> tags.",
-    )
-    parser.add_argument(
-        "--no-output-schema",
-        action="store_true",
-        default=None,
-        help="Do not pass output_schema.json to codex exec.",
     )
     return parser.parse_args()
 
@@ -642,21 +887,46 @@ def main() -> None:
     args = parse_args()
     config = read_config(Path(args.config))
     run_config = config_section(config, "run")
+    harness = str(choose(args.harness, run_config.get("harness"), "opencode"))
+    if harness not in {"opencode", "codex"}:
+        raise ValueError("Harness must be one of: opencode, codex.")
+    harness_config = config_section(config, harness)
+    opencode_config = config_section(config, "opencode")
     codex_config = config_section(config, "codex")
 
     split = str(choose(args.split, run_config.get("split"), "easy"))
-    method = str(choose(args.method, run_config.get("method"), "codex_cli"))
     uid = choose(args.uid, run_config.get("uid"), None)
     limit = choose(args.limit, run_config.get("limit"), None)
-    model = choose(args.codex_model, codex_config.get("model"), None)
-    timeout = int(choose(args.timeout, codex_config.get("timeout"), 900))
-    sandbox = str(choose(args.sandbox, codex_config.get("sandbox"), "workspace-write"))
-    work_dir = str(choose(args.work_dir, run_config.get("work_dir"), "agent_env/runs"))
+    if harness == "opencode":
+        harness_model_arg = choose(args.model, args.opencode_model, None)
+        selected_config = opencode_config
+    else:
+        harness_model_arg = choose(args.model, args.codex_model, None)
+        selected_config = codex_config
+    model = choose(harness_model_arg, selected_config.get("model"), None)
+    method = str(
+        choose_nonempty(
+            args.method,
+            run_config.get("method"),
+            default_method(model, split, harness),
+        )
+    )
+    timeout = int(choose(args.timeout, selected_config.get("timeout"), 900))
+    work_dir = str(
+        choose_nonempty(
+            args.work_dir, run_config.get("work_dir"), f"agent_env/runs/{method}"
+        )
+    )
     tool_python = str(
         choose(args.tool_python, run_config.get("tool_python"), default_tool_python())
     )
-    no_run_codex = bool(
-        choose(args.no_run_codex, run_config.get("no_run_codex"), False)
+    no_run_alias = choose(args.no_run_harness, args.no_run_opencode, None)
+    no_run_harness = bool(
+        choose(
+            no_run_alias,
+            choose(run_config.get("no_run_harness"), run_config.get("no_run_opencode"), None),
+            False,
+        )
     )
     resume = bool(choose(args.resume, run_config.get("resume"), False))
     plan_file = choose(args.plan_file, run_config.get("plan_file"), None)
@@ -667,21 +937,9 @@ def main() -> None:
                 if args.no_require_output_tags is None
                 else not args.no_require_output_tags
             ),
-            codex_config.get("require_output_tags"),
+            selected_config.get("require_output_tags"),
             True,
         )
-    )
-    use_output_schema = bool(
-        choose(
-            None if args.no_output_schema is None else not args.no_output_schema,
-            codex_config.get("output_schema"),
-            True,
-        )
-    )
-    output_schema = (
-        PROJECT_ROOT / "chinatravel" / "evaluation" / "output_schema.json"
-        if use_output_schema
-        else None
     )
 
     query_ids, query_data = load_queries(split)
@@ -699,7 +957,7 @@ def main() -> None:
 
     print(f"Config: {Path(args.config)}")
     print(
-        f"Run: split={split} queries={len(selected_ids)} method={method} "
+        f"Run: split={split} queries={len(selected_ids)} harness={harness} method={method} "
         f"model={model or '<config default>'} resume={resume}"
     )
 
@@ -713,18 +971,17 @@ def main() -> None:
             print(f"Skipping completed query because result exists: {result_path}")
             continue
         evaluation = solve_query(
+            harness=harness,
             split=split,
             uid=uid,
             query=query_data[uid],
             method=method,
             model=model,
             timeout=timeout,
-            sandbox=sandbox,
             work_dir=work_dir,
-            codex_config=codex_config,
-            no_run_codex=no_run_codex,
+            harness_config=harness_config,
+            no_run_harness=no_run_harness,
             plan_file=plan_file,
-            output_schema=output_schema,
             tool_python=tool_python,
             require_output_tags=require_output_tags,
         )
