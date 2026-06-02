@@ -79,7 +79,10 @@ if __name__ == "__main__":
         "--method", "-m", type=str, default="example"
     )  # , choices=METHOD_LIST)
     parser.add_argument("--preference", "-p", action="store_true", default=False)
+    parser.add_argument("--lang", "--locale", choices=["zh", "en"], default="zh")
     args = parser.parse_args()
+    if args.lang == "en" and args.method != "all" and not args.method.endswith("_en"):
+        args.method += "_en"
 
     # print(args.splits)
 
@@ -98,7 +101,7 @@ if __name__ == "__main__":
         os.makedirs("eval_res/")
     if not os.path.exists("eval_res/splits_{}/".format(args.splits)):
         os.makedirs("eval_res/splits_{}/".format(args.splits))
-    
+
 
 
     for method in method_list:
@@ -178,7 +181,7 @@ if __name__ == "__main__":
 
 
         print("All pass ratio: ", 1. * len(all_pass_id) / len(query_index) * 100)
-        
+
         if args.preference:
             print("Preference:")
             result_agg = evaluate_preference_v2(

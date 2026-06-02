@@ -1,6 +1,7 @@
 import os
 import pandas as pd
 from pandas import DataFrame
+from chinatravel.environment.language import CITY_NAMES, normalize_lang, relative_database_path
 
 
 def time2float(time_str):
@@ -9,38 +10,35 @@ def time2float(time_str):
 
 
 class IntercityTransport:
-    def __init__(self, path: str = "../../database/intercity_transport/"):
+    def __init__(self, path: str = None, lang=None):
+        self.lang = normalize_lang(lang)
         curdir = os.path.dirname(os.path.realpath(__file__))
+        if path is None:
+            path = relative_database_path(self.lang, "intercity_transport")
         self.base_path = os.path.join(curdir, path)
-        self.airplane_path = self.base_path + "airplane.jsonl"
+        self.airplane_path = os.path.join(self.base_path, "airplane.jsonl")
         self.airplane_df = pd.read_json(
             self.airplane_path, lines=True, keep_default_dates=False
         )
-        city_list = [
-            "上海",
-            "北京",
-            "深圳",
-            "广州",
-            "重庆",
-            "苏州",
-            "成都",
-            "杭州",
-            "武汉",
-            "南京",
-        ]
+        city_list = CITY_NAMES["zh"]
+        exposed_city_list = CITY_NAMES[self.lang]
         self.train_df_dict = {}
 
-        for start_city in city_list:
-            for end_city in city_list:
+        for start_idx, start_city in enumerate(city_list):
+            for end_idx, end_city in enumerate(city_list):
                 if start_city == end_city:
                     continue
                 train_path = (
-                    self.base_path
-                    + "train/"
-                    + "from_{}_to_{}.json".format(start_city, end_city)
+                    os.path.join(
+                        self.base_path,
+                        "train",
+                        "from_{}_to_{}.json".format(start_city, end_city),
+                    )
                 )
                 train_df = pd.read_json(train_path)
-                self.train_df_dict[(start_city, end_city)] = train_df
+                self.train_df_dict[
+                    (exposed_city_list[start_idx], exposed_city_list[end_idx])
+                ] = train_df
 
     def select(
         self, start_city, end_city, intercity_type, earliest_leave_time="00:00"

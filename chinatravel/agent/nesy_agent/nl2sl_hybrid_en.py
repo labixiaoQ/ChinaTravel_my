@@ -1,5 +1,6 @@
 import os
 import sys
+import traceback
 from json_repair import repair_json
 
 project_path = os.path.abspath(
@@ -13,10 +14,9 @@ from tqdm import tqdm
 from copy import deepcopy
 from chinatravel.agent.llms import Deepseek, GPT4o, Qwen, Mistral, GLM4Plus
 from chinatravel.symbol_verification.concept_func import func_dict
-from chinatravel.agent.nesy_agent.prompts import NL2SL_INSTRUCTION
-from chinatravel.agent.nesy_agent.ast_checker import HardLogicPyChecker
+from chinatravel.agent.nesy_agent.prompts.prompts_en import NL2SL_INSTRUCTION
+from chinatravel.agent.nesy_agent.ast_checker_en import HardLogicPyChecker
 from chinatravel.data.load_datasets import save_json_file, load_json_file
-from chinatravel.environment.language import city_names, normalize_lang
 
 
 func_docs = """
@@ -94,16 +94,16 @@ Docs: Get the number of rooms of accommodation activity.
 Return: int
 (25) room_type(activity)
 Docs: Get the type of room of accommodation activity.
-1 for single room, 2 for double room. Must be 1 or 2. Never use "大床房" or "双床房" or other words but 1 or 2.
+1 for single room, 2 for double room. Must be 1 or 2. Never use "double room" or "twin room" or other words but 1 or 2.
 Return: int
 (26) restaurant_type(activity, target_city)
-Docs: Get the type of restaurant's cuisine in the target city. The return value must be in ['云南菜', '西藏菜', '东北菜', '烧烤', '亚洲菜', '粤菜', '西北菜', '闽菜', '客家菜', '快餐简餐', '川菜', '台湾菜', '其他', '清真菜', '小吃', '西餐', '素食', '日本料理', '江浙菜', '湖北菜', '东南亚菜', '湘菜', '北京菜', '韩国料理', '海鲜', '中东料理', '融合菜', '茶馆/茶室', '酒吧/酒馆', '创意菜', '自助餐', '咖啡店', '本帮菜', '徽菜', '拉美料理', '鲁菜', '新疆菜', '农家菜', '海南菜', '火锅', '面包甜点', '其他中餐'].
+Docs: Get the type of restaurant's cuisine in the target city. The return value must be in ['Yunnan cuisine', 'Tibetan cuisine', 'Northeastern Chinese cuisine', 'Barbecue', 'Asian cuisine', 'Cantonese cuisine', 'Northwestern Chinese cuisine', 'Fujian cuisine', 'Hakka cuisine', 'Fast food and casual dining', 'Sichuan cuisine', 'Taiwanese cuisine', 'Other', 'Halal cuisine', 'Snacks', 'Western cuisine', 'Vegetarian cuisine', 'Japanese cuisine', 'Jiangsu-Zhejiang cuisine', 'Hubei cuisine', 'Southeast Asian cuisine', 'Hunan cuisine', 'Beijing cuisine', 'Korean cuisine', 'Seafood', 'Middle Eastern cuisine', 'fusion cuisine', 'Teahouse', 'Bar/Pub', 'Creative Cuisine', 'buffet', 'coffee shop', 'Shanghai cuisine', 'Huizhou cuisine', 'Latin American cuisine', 'Shandong Cuisine', 'Xinjiang cuisine', 'Farmhouse cuisine', 'Hainan cuisine', 'Hot pot', 'Bakery and Desserts', 'Other Chinese Cuisine'].
 Return: str
 (27) attraction_type(activity, target_city)
-Docs: Get the type of attraction in the target city. The return value must be in ['博物馆/纪念馆', '美术馆/艺术馆', '红色景点', '自然风光', '人文景观', '大学校园', '历史古迹', '游乐园/体育娱乐', '图书馆', '园林', '其它', '文化旅游区', '公园', '商业街区'].
+Docs: Get the type of attraction in the target city. The return value must be in ['Museum/Memorial Hall', 'Art museum', 'Red tourism sites', 'natural scenery', 'Cultural Landscape', 'University campus', 'historical site', 'Amusement Park/Sports Entertainment', 'Garden', 'Other', 'Cultural Tourism Area', 'park', 'commercial district'].
 Return: str
 (28) accommodation_type(activity, target_city)
-Docs: Get the feature of accommodation in the target city to judge whether it's feature meets the user's requirement. The return value must be in ['儿童俱乐部', '空气净化器', '山景房', '私汤房', '四合院', '温泉', '湖畔美居', '电竞酒店', '温泉泡汤', '行政酒廊', '充电桩', '设计师酒店', '民宿', '湖景房', '动人夜景', '行李寄存', '中式庭院', '桌球室', '私人泳池', '钓鱼', '迷人海景', '园林建筑', '老洋房', '儿童泳池', '历史名宅', '棋牌室', '智能客控', '情侣房', '小而美', '特色 住宿', '茶室', '亲子主题房', '多功能厅', '洗衣房', '客栈', '自营亲子房', '停车场', 'Boss推荐', '江河景房', '日光浴场', '自营影音房', '厨房', '空调', '网红泳池', '别墅', '免费停车', '洗衣服务', '窗外好景', '酒店公寓', '会议厅', '家庭房', '24小时前台', '商务中心', '提前入园', '农家乐', '智能马桶', '美食酒店', 'SPA', '拍照出片', '海景房', '泳池', '影音房', '管家服务', '穿梭机场班车', '桑拿', '机器人服务', '儿童乐园', '健身室', '洗衣机', '自营舒睡房', '宠物友好', '电竞房', '位置超好', '套房'].
+Docs: Get the feature of accommodation in the target city to judge whether it's feature meets the user's requirement. The return value must be in ["Kids' Club", 'Air purifier', 'Mountain View Room', 'Private Hot Spring Room', 'Courtyard house', 'hot spring', 'Lakeside Residence', 'e-sports hotel', 'Hot spring bathing', 'Executive Lounge', 'Charging station', 'Designer hotel', 'homestay', 'Lake View Room', 'Stunning Night Views', 'Luggage Storage', 'Chinese-style courtyard', 'Billiards Room', 'Private Pool', 'Fishing', 'Charming sea view', 'Garden Architecture', 'Old Western-style house', "Children's Pool", 'Historic Residence', 'Mahjong and Card Game Room', 'Smart Room Control', "Couple's Room", 'small and beautiful', 'Tea Room', 'Family-themed room', 'Multifunction Hall', 'Laundry room', 'inn', 'Self-operated family room', 'Parking lot', 'Recommended by the Boss', 'River view room', 'Sunbathing area', 'Self-operated entertainment room', 'Kitchen', 'Air conditioning', 'Instagrammable pool', 'Villa', 'Free parking', 'Laundry service', 'Great view from the window', 'Serviced Apartment', 'Conference Hall', 'Family Room', '24-hour front desk', 'Business Center', 'Early Park Entry', 'Farm stay', 'Smart toilet', 'Gourmet Hotel', 'Spa', 'Photogenic', 'Ocean View Room', 'Swimming Pool', 'Media Room', 'Butler Service', 'Airport shuttle service', 'Sauna', 'Robot Service', "Children's Playground", 'Fitness Room', 'Washing machine', 'Self-operated Comfort Sleep Room', 'Pet-friendly', 'e-sports room', 'Excellent location', 'Suite'].
 Return: str
 (29) innercity_transport_type(transports)
 Docs: Get the type of innercity transport. The return value must be in ['metro', 'taxi', 'walk'].
@@ -152,7 +152,7 @@ For most case, for exist constraints, you can set `result=False` at the beginnin
 If you find some pesucode in the nature language constraints is not defined in the functions we offer above, you must translate them into python block code with the functions we offer above. Usually, for attractions and restaurants, if the required one exists, the requirement is satisfied. However, for accommodation, people usually stay in the same hotel for the whole trip, so we need check all the accommodation activities in the plan.
 ###
 
-if you find some error in nature language constraints, you need to fix them in the code block. if {'自然景观'} <= spot_type, you need to change it to '自然风光' in the code block as we offer above. As the same, if {'大学'} <= spot_type, you need to change it to '大学校园' and '繁华的商业街' to '商业街区' in the code block. Also for restaurant_type and accommodation_type.
+if you find some error in nature language constraints, you need to fix them in the code block. if {'natural landscape'} <= spot_type, you need to change it to 'natural scenery' in the code block as we offer above.
 
 Example:
 nature_language:
@@ -162,15 +162,15 @@ cost<=3000
 tickets==3
 rooms==2
 room_type==2
-{'北京菜'}<=food_type
+{'Beijing cuisine'}<=food_type
 intercity_transport=={'train'}
-{'自然风光', '博物馆/纪念馆'}<=spot_type
-{'智能客控'}<=hotel_feature
+{'natural scenery', 'Museum/Memorial Hall'}<=spot_type
+{'Smart Room Control'}<=hotel_feature
 hotel_price<=500
-{'北京全聚德(前门店)'} <= restaurant_names
+{'Beijing Quanjude (Qianmen Branch)'} <= restaurant_names
 food_price<=100
 transport_type<={'metro', 'taxi'}
-{'故宫博物院'}<=attraction_names
+{'The Palace Museum'}<=attraction_names
 taxi_cars==1
 answer:
 [
@@ -179,14 +179,14 @@ answer:
 "total_cost=0\nfor activity in allactivities(plan): total_cost+=activity_cost(activity)+innercity_transport_cost(activity_transports(activity))\nresult=(total_cost<=3000)",
 "result=True\nfor activity in allactivities(plan):\n  if activity_type(activity) in ['attraction', 'airplane', 'train'] and activity_tickets(activity)!=2: result=False\n  if innercity_transport_type(activity_transports(activity))=='metro' and metro_tickets(activity_transports(activity))!=2: result=False",
 "result=True\nfor activity in allactivities(plan):\n  if innercity_transport_type(activity_transports(activity))=='taxi' and taxi_cars(activity_transports(activity))!=1: result=False",
-"result=True\nfor activity in allactivities(plan):\n  if activity_type(activity)=='accommodation' and room_count(activity)!=2: result=False\n  if activity_type(activity)=='accommodation' and room_type(activity)!=2: result=False\n  if activity_type(activity)=='accommodation' and accommodation_type(activity, target_city(plan))!='智能客控': result=False\n  if activity_type(activity)=='accommodation' and activity_price(activity)>500: result=False",
-"restaurant_type_set = set()\nfor activity in allactivities(plan):\n  if activity_type(activity) in ['breakfast', 'lunch', 'dinner']:\n    restaurant_type_set.add(restaurant_type(activity, target_city(plan)))\nresult=({'北京菜'}<=restaurant_type_set)",
-"attraction_type_set = set()\nfor activity in allactivities(plan):\n  if activity_type(activity)=='attraction':\n    attraction_type_set.add(attraction_type(activity, target_city(plan)))\nresult=({'自然风光', '博物馆/纪念馆'}<=attraction_type_set)",
+"result=True\nfor activity in allactivities(plan):\n  if activity_type(activity)=='accommodation' and room_count(activity)!=2: result=False\n  if activity_type(activity)=='accommodation' and room_type(activity)!=2: result=False\n  if activity_type(activity)=='accommodation' and accommodation_type(activity, target_city(plan))!='Smart Room Control': result=False\n  if activity_type(activity)=='accommodation' and activity_price(activity)>500: result=False",
+"restaurant_type_set = set()\nfor activity in allactivities(plan):\n  if activity_type(activity) in ['breakfast', 'lunch', 'dinner']:\n    restaurant_type_set.add(restaurant_type(activity, target_city(plan)))\nresult=({'Beijing cuisine'}<=restaurant_type_set)",
+"attraction_type_set = set()\nfor activity in allactivities(plan):\n  if activity_type(activity)=='attraction':\n    attraction_type_set.add(attraction_type(activity, target_city(plan)))\nresult=({'natural scenery', 'Museum/Memorial Hall'}<=attraction_type_set)",
 "intercity_transport_set = set()\nfor activity in allactivities(plan):\n  if activity_type(activity) in ['train', 'airplane']:\n    intercity_transport_set.add(activity_type(activity))\nresult=(intercity_transport_set=={'train'})",
-"restaurant_names_set = set()\nfor activity in allactivities(plan):\n  if activity_type(activity) in ['breakfast', 'lunch', 'dinner']:\n    restaurant_names_set.add(activity_position(activity))\nresult=({'北京全聚德(前门店)'}<=restaurant_names_set)",
+"restaurant_names_set = set()\nfor activity in allactivities(plan):\n  if activity_type(activity) in ['breakfast', 'lunch', 'dinner']:\n    restaurant_names_set.add(activity_position(activity))\nresult=({'Beijing Quanjude (Qianmen Branch)'}<=restaurant_names_set)",
 "result=True\nfor activity in allactivities(plan):\n  if activity_type(activity) in ['breakfast', 'lunch', 'dinner'] and activity_price(activity)>100: result=False",
 "innercity_transport_set = set()\nfor activity in allactivities(plan):\n  innercity_transport_set.add(innercity_transport_type(activity_transports(activity)))\nresult=(innercity_transport_set<={'metro', 'taxi'})",
-"attraction_names_set = set()\nfor activity in allactivities(plan):\n  if activity_type(activity)=='attraction':\n    attraction_names_set.add(activity_position(activity))\nresult=({'故宫博物院'}<=attraction_names_set)",
+"attraction_names_set = set()\nfor activity in allactivities(plan):\n  if activity_type(activity)=='attraction':\n    attraction_names_set.add(activity_position(activity))\nresult=({'The Palace Museum'}<=attraction_names_set)",
 ]
 """
 )
@@ -203,9 +203,9 @@ We offer functions below:"""
     + func_docs
     + """
 Try to fix the error in the code block and output them in json list format.
-The attractions_type, restaurants_type, and accommodations_type must be in the list we offer above. You must trans the original type to !!!a similar one!!! we offer if the original type is not in the list we offer above. For example '购物街' to '商业街区' and '本地特色菜' usually refers to the local cuisine in the city.
-For return value of activity_position(activity), it will be checked by whether the position is in the database. You need to trans it to a similar one if it is rufused with you own knowledge. For example, '故宫' to '故宫博物院', 'A near B' may be 'A(B店)' or 'A（B店）' or other similar ones.
-Also hotel_names should be checked by activity_position(activity), not accommodation_type(activity, target_city(plan)) and so for other names.
+The attractions_type, restaurants_type, and accommodations_type must be in the list we offer above. You must trans the original type to !!!a similar one!!! we offer if the original type is not in the list we offer above.
+
+For return value of activity_position(activity), it will be checked by whether the position is in the database. You need to trans it to a similar one if it is rufused with you own knowledge. Also hotel_names should be checked by activity_position(activity), not accommodation_type(activity, target_city(plan)) and so for other names.
 Usually, for attractions and restaurants, if the required one exists, the requirement is satisfied. However, for accommodation, people usually stay in the same hotel for the whole trip, so we need check all the accommodation activities in the plan. Either change the function or value to make the code block correct.
 You must output the whole code block. Including those constraints that are correct.
 The original code block is:
@@ -213,7 +213,7 @@ The original code block is:
 )
 
 
-def load_example_plans(example_plans_dir="chinatravel/agent/nesy_agent/plan_for_check"):
+def load_example_plans(example_plans_dir="chinatravel/agent/nesy_agent/plan_for_check_en"):
     plan_for_test = {}
     plan_files = os.listdir(example_plans_dir)
     plan_files = [plan_file for plan_file in plan_files if plan_file.endswith(".json")]
@@ -247,18 +247,10 @@ def get_first_list_in_str(json_str):
     return "[]"
 
 
-def _nl2sl_instruction(lang):
-    if normalize_lang(lang) == "en":
-        from chinatravel.agent.nesy_agent.prompts.prompts_en import NL2SL_INSTRUCTION as EN_NL2SL_INSTRUCTION
-
-        return EN_NL2SL_INSTRUCTION
-    return NL2SL_INSTRUCTION
-
-
-def nl2sl_step1(query, backbone_llm, lang="zh"):
+def nl2sl_step1(query, backbone_llm):
 
     nature_language = query["nature_language"]
-    messages = [{"role": "user", "content": _nl2sl_instruction(lang).format(nature_language)}]
+    messages = [{"role": "user", "content": NL2SL_INSTRUCTION.format(nature_language)}]
     # print(messages[0]["content"])
     query_ = backbone_llm(messages, one_line=False, json_mode=True)
 
@@ -457,7 +449,7 @@ def nl2sl_step3(query, backbone_llm, checker, max_trails=5):
     return query
 
 
-def nl2sl(query, backbone_llm, checker, cache_dir="cache_hybrid", lang="zh"):
+def nl2sl(query, backbone_llm, checker, cache_dir="cache_hybrid"):
     file_path = os.path.join(
         project_path,
         cache_dir,
@@ -467,13 +459,24 @@ def nl2sl(query, backbone_llm, checker, cache_dir="cache_hybrid", lang="zh"):
     if os.path.exists(file_path):
         query = load_json_file(file_path)
         return query
-    city_list = city_names(lang)
+    city_list = [
+        "Beijing",
+        "Shanghai",
+        "Nanjing",
+        "Suzhou",
+        "Hangzhou",
+        "Shenzhen",
+        "Chengdu",
+        "Wuhan",
+        "Guangzhou",
+        "Chongqing",
+    ]
     if query["target_city"] not in city_list or query["start_city"] not in city_list:
         query["hard_logic"] = []
         query["hard_logic_py"] = []
         query["ood"] = True
         return query
-    query = nl2sl_step1(query, backbone_llm, lang=lang)
+    query = nl2sl_step1(query, backbone_llm)
     query = nl2sl_step2(query, backbone_llm)
     query = nl2sl_step3(query, backbone_llm, checker)
 
@@ -481,21 +484,33 @@ def nl2sl(query, backbone_llm, checker, cache_dir="cache_hybrid", lang="zh"):
     return query
 
 
-def nl2sl_reflect(query, backbone_llm, lang="zh"):
-    lang = normalize_lang(lang)
-    city_list = city_names(lang)
+def nl2sl_reflect(query, backbone_llm):
+    city_list = [
+        "Beijing",
+        "Shanghai",
+        "Nanjing",
+        "Suzhou",
+        "Hangzhou",
+        "Shenzhen",
+        "Chengdu",
+        "Wuhan",
+        "Guangzhou",
+        "Chongqing",
+    ]
     if "target_city" in query and "start_city" in query:
         if query["target_city"] not in city_list or query["start_city"] not in city_list:
             query["hard_logic"] = []
             query["hard_logic_py"] = []
             query["ood"] = True
             return query
-    query = nl2sl_step1(query, backbone_llm, lang=lang)
+    query = nl2sl_step1(query, backbone_llm)
     query = nl2sl_step2(query, backbone_llm)
-    checker = HardLogicPyChecker(query["target_city"])
-    query = nl2sl_step3(query, backbone_llm, checker)
-    query["hard_logic_py_iter_3"] = query["hard_logic_py"]
-
+    try:
+        checker = HardLogicPyChecker(query["target_city"])
+        query = nl2sl_step3(query, backbone_llm, checker)
+        query["hard_logic_py_iter_3"] = query["hard_logic_py"]
+    except Exception as e:
+        query["reflect_error"] = traceback.format_exc()
     return query
 
 
@@ -530,16 +545,16 @@ def run(splits: str = "easy_day1", backbone_llm=None, need_check=False):
 
     for query in tqdm(query_list):
         city_list = [
-            "上海",
-            "北京",
-            "深圳",
-            "广州",
-            "重庆",
-            "成都",
-            "杭州",
-            "武汉",
-            "南京",
-            "苏州",
+            "Beijing",
+            "Shanghai",
+            "Nanjing",
+            "Suzhou",
+            "Hangzhou",
+            "Shenzhen",
+            "Chengdu",
+            "Wuhan",
+            "Guangzhou",
+            "Chongqing",
         ]
         if (
             query["target_city"] not in city_list

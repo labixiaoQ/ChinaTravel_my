@@ -39,7 +39,7 @@ transport_count = 0
 for activity in allactivities(plan):
     transports = activity_transports(activity)
     if transports!=[]:
-        transport_count += 1  
+        transport_count += 1
         time_cost += innercity_transport_time(transports)
 average_time_cost = time_cost / transport_count if transport_count > 0 else -1
 result= (-1/105) * average_time_cost + 8/7
@@ -53,7 +53,7 @@ res_count=res_count/(day_count(plan))
 result=res_count/3
 """
 DEFAULT_PR=[
-    DEFAULT_ATTRACTION_PR, 
+    DEFAULT_ATTRACTION_PR,
     DEFAULT_TRANS_PR,
     DEFAULT_RES_PR
 ]
@@ -71,7 +71,7 @@ def cal_default_pr_score(query_index, query_data, result_data,all_pass_id):
         return max(0.0, min(1.0, value))
 
     for ii, idx in enumerate(tqdm(query_index)):
-        symbolic_input, plan = query_data[idx], result_data[idx]  
+        symbolic_input, plan = query_data[idx], result_data[idx]
         results = []
         if idx not in all_pass_id:
             results=np.zeros(len(DEFAULT_PR))
@@ -79,7 +79,7 @@ def cal_default_pr_score(query_index, query_data, result_data,all_pass_id):
         for constraint in DEFAULT_PR:
             vars_dict = deepcopy(func_dict)
             vars_dict["plan"] = plan
-            
+
             # exec(constraint, {"__builtins__": {"set": set, "print": print}}, vars_dict)
             # results.append(vars_dict.get("result", False))
             try:
@@ -140,8 +140,8 @@ def write_file(file, content):
     """
     with open(file, 'a', encoding="utf-8") as f:
         f.write(content)
-        
-        
+
+
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
@@ -150,10 +150,13 @@ if __name__ == "__main__":
         "--method", "-m", type=str, default="travel_agent"
     )  # , choices=METHOD_LIST)
     parser.add_argument("--preference", "-p", action="store_true", default=False)
+    parser.add_argument("--lang", "--locale", choices=["zh", "en"], default="zh")
     args = parser.parse_args()
+    if args.lang == "en" and not args.method.endswith("_en"):
+        args.method += "_en"
 
     # print(args.splits)
-    
+
 
     query_index, query_data = load_query(args)
 
@@ -196,7 +199,7 @@ if __name__ == "__main__":
         )
 
 
-    
+
 
         print("C-LPR: {}".format(conditional_micro_logi))
         scores['C-LPR'] = conditional_micro_logi
@@ -211,18 +214,18 @@ if __name__ == "__main__":
         print("FPR: ", 1. * len(all_pass_id) / len(query_index) * 100)
         fpr= 1. * len(all_pass_id) / len(query_index) * 100
         scores['FPR'] = fpr
-        
+
         pre_res=cal_default_pr_score(query_index,query_data,result_data[method],all_pass_id)
         scores['DAV']=pre_res[0]*100
         scores['ATT']=pre_res[1]*100
         scores['DDR']=pre_res[2]*100
-        
+
         final_score=0.1*micro_comm+0.1*micro_comm+0.25*conditional_micro_logi+0.05*scores['DAV']+0.05*scores['ATT']+0.05*scores['DDR']+0.4*fpr
         print('Overall Score: ',final_score)
         scores['overall'] = final_score
         print(scores)
 
-        score_file = os.path.join('your_tpc_scores.json')    
+        score_file = os.path.join('your_tpc_scores.json')
         write_file(score_file, json.dumps(scores))
         if args.preference:
             print("Preference:")
@@ -232,4 +235,3 @@ if __name__ == "__main__":
                 result_data[method],
                 list(set(commonsense_pass_id) & set(logi_pass_id)),
             )
-

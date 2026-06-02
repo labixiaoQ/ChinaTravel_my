@@ -103,7 +103,12 @@ class NesyAgent(BaseAgent):
             query = load_json_file(file_path)
 
         else:
-            query = nl2sl_reflect(query, self.backbone_llm)
+            if self.lang == "en":
+                from chinatravel.agent.nesy_agent.nl2sl_hybrid_en import nl2sl_reflect as nl2sl_reflect_en
+
+                query = nl2sl_reflect_en(query, self.backbone_llm)
+            else:
+                query = nl2sl_reflect(query, self.backbone_llm, lang=self.lang)
             if "error" in query:
                 query["hard_logic_py"] = {}
             save_json_file(query, file_path)
@@ -257,7 +262,7 @@ class NesyAgent(BaseAgent):
                 # self.least_plan_logic = res_plan
                 try:
                     if self.query["preference_opt"] == "maximize":
-                        
+
                         res = evaluate_preference_py([(self.query["preference_opt"], self.query["preference_concept"], self.query["preference_code"])], res_plan)[0]
                         print(self.query["preference_concept"], res)
 
@@ -488,7 +493,7 @@ class NesyAgent(BaseAgent):
             transports_ranking = self.innercity_transports_ranking_from_query
 
             for transport_type_sel in transports_ranking:
-                
+
                 self.search_nodes += 1
 
                 flag = True
@@ -975,7 +980,7 @@ class NesyAgent(BaseAgent):
             )
             if success:
                 return True, plan
-            
+
             plan[current_day]["activities"].pop()
 
             candidates_type = []
@@ -1074,7 +1079,7 @@ class NesyAgent(BaseAgent):
 
                 # transports_ranking = self.ranking_innercity_transport(current_position, hotel_sel["name"], current_day, current_time)
                 transports_ranking = self.innercity_transports_ranking_from_query
-                
+
                 for trans_type_sel in transports_ranking:
                     self.search_nodes += 1
                     if hotel_sel["name"] == current_position:
@@ -1415,7 +1420,7 @@ class NesyAgent(BaseAgent):
                             return True, res_plan
                         else:
                             plan[current_day]["activities"].pop()
-                            
+
                             self.backtrack_count += 1
 
                             print(
@@ -1553,7 +1558,7 @@ class NesyAgent(BaseAgent):
         self.search_nodes = 0
         self.backtrack_count = 0
 
-        self.constraints_validation_count = 0 
+        self.constraints_validation_count = 0
         self.commonsense_pass_count = 0
         self.logical_pass_count = 0
         self.all_constraints_pass = 0
@@ -1705,7 +1710,7 @@ class NesyAgent(BaseAgent):
                         if time.time() > self.time_before_search + self.TIME_CUT:
                             print("Searching TIME OUT !!!")
                             return False, {"error_info": "TimeOutError"}
-                        
+
                         self.backtrack_count += 1
                         print("search failed given the intercity-transport and hotels, backtrack...")
 
@@ -1747,7 +1752,7 @@ class NesyAgent(BaseAgent):
                 raise ValueError("preference_opt must be maximize or minimize")
 
 
-        
+
         self.memory["accommodations"] = self.collect_poi_info_all(
             symoblic_query["target_city"], "accommodation"
         )

@@ -1,4 +1,4 @@
-from agent.pure_neuro_agent.prompts.prompts import (
+from .prompts import (
     ZEROSHOT_ACT_INSTRUCTION,
     ZEROSHOT_REACT_INSTRUCTION,
     ZEROSHOT_REACT_INSTRUCTION_GLM4,

@@ -1,4 +1,7 @@
 __pycache__/
+.DS_Store
+**/.DS_Store
+.venv/
 run_exp.sh
 eval_exp.sh
 cache/

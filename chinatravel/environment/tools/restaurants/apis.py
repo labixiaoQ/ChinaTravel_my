@@ -8,22 +8,15 @@ import sys
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from poi.apis import Poi
+from chinatravel.environment.language import CITY_SLUGS, city_names, normalize_lang, relative_database_path
 
 
 class Restaurants:
-    def __init__(self, base_path: str = "../../database/restaurants"):
-        city_list = [
-            "beijing",
-            "shanghai",
-            "nanjing",
-            "suzhou",
-            "hangzhou",
-            "shenzhen",
-            "chengdu",
-            "wuhan",
-            "guangzhou",
-            "chongqing",
-        ]
+    def __init__(self, base_path: str = None, lang=None):
+        self.lang = normalize_lang(lang)
+        if base_path is None:
+            base_path = relative_database_path(self.lang, "restaurants")
+        city_list = CITY_SLUGS
         self.data = {}
         curdir = os.path.dirname(os.path.realpath(__file__))
         for city in city_list:
@@ -40,18 +33,7 @@ class Restaurants:
         self.cuisine_list_map = {}
         for city in city_list:
             self.cuisine_list_map[city] = self.data[city]["cuisine"].unique()
-        city_cn_list = [
-            "北京",
-            "上海",
-            "南京",
-            "苏州",
-            "杭州",
-            "深圳",
-            "成都",
-            "武汉",
-            "广州",
-            "重庆",
-        ]
+        city_cn_list = city_names(self.lang)
 
         for i, city in enumerate(city_list):
             self.data[city_cn_list[i]] = self.data.pop(city)
@@ -60,7 +42,7 @@ class Restaurants:
             )
             self.cuisine_list_map[city_cn_list[i]] = self.cuisine_list_map.pop(city)
 
-        self.poi = Poi()
+        self.poi = Poi(lang=self.lang)
 
     def keys(self, city: str):
         return self.key_type_tuple_list_map[city]

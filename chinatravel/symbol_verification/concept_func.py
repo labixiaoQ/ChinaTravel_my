@@ -144,7 +144,7 @@ def innercity_transport_time(transports, mode=None):
         hour2, minu2 = int(start_time.split(":")[0]), int(start_time.split(":")[1])
 
         return (hour1 - hour2) * 60 + (minu1 - minu2)
-    
+
     time_cost = 0
     for transport in transports:
         time_cost += calc_time_delta(transport["end_time"], transport["start_time"])
@@ -225,7 +225,7 @@ def innercity_transport_end_time(transports):
     return transports[len(transports) - 1]["end_time"]
 
 def intercity_transport_origin(activity):
-    city_list=["上海", "北京", "深圳", "广州", "重庆", "成都", "杭州", "武汉", "南京","苏州"]
+    city_list=["上海", "北京", "深圳", "广州", "重庆", "成都", "杭州", "武汉", "南京","苏州", "Shanghai", "Beijing", "Shenzhen", "Guangzhou", "Chongqing", "Chengdu", "Hangzhou", "Wuhan", "Nanjing","Suzhou"]
     if "start" in activity:
         for city in city_list:
             if city in activity["start"]:
@@ -233,7 +233,7 @@ def intercity_transport_origin(activity):
     return ""
 
 def intercity_transport_destination(activity):
-    city_list=["上海", "北京", "深圳", "广州", "重庆", "成都", "杭州", "武汉", "南京","苏州"]
+    city_list=["上海", "北京", "深圳", "广州", "重庆", "成都", "杭州", "武汉", "南京","苏州", "Shanghai", "Beijing", "Shenzhen", "Guangzhou", "Chongqing", "Chengdu", "Hangzhou", "Wuhan", "Nanjing","Suzhou"]
     if "end" in activity:
         for city in city_list:
             if city in activity["end"]:
@@ -274,6 +274,6 @@ func_dict = {
     "activity_start_time": activity_start_time,
     "activity_end_time": activity_end_time,
     "intercity_transport_origin": intercity_transport_origin,
-    "intercity_transport_destination": intercity_transport_destination, 
+    "intercity_transport_destination": intercity_transport_destination,
     "innercity_transport_time": innercity_transport_time,
 }

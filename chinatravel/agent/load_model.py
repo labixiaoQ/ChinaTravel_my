@@ -1,4 +1,5 @@
 def init_agent(kwargs):
+    lang = kwargs.get("lang", "zh")
     from .nesy_agent.rule_driven_rec import RuleDrivenAgent
     from .nesy_agent.llm_driven_rec import LLMDrivenAgent
     from .pure_neuro_agent.pure_neuro_agent import ActAgent, ReActAgent
@@ -9,6 +10,14 @@ def init_agent(kwargs):
         ONESHOT_REACT_INSTRUCTION,
         ONESHOT_REACT_INSTRUCTION_GLM4,
     )
+    if lang == "en":
+        from .pure_neuro_agent.prompts.prompts_en import (
+            # ZEROSHOT_ACT_INSTRUCTION,
+            # ZEROSHOT_REACT_INSTRUCTION,
+            # ZEROSHOT_REACT_INSTRUCTION_GLM4,
+            ONESHOT_REACT_INSTRUCTION,
+            # ONESHOT_REACT_INSTRUCTION_GLM4,
+        )
 
     from .nesy_verifier import LLMModuloAgent
 

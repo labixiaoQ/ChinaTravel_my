@@ -52,6 +52,7 @@ if __name__ == "__main__":
         default=300,
         help="Timeout in seconds for each query",
     )
+    parser.add_argument("--lang", "--locale", choices=["zh", "en"], default="zh", help="Language environment to load.")
 
     parser.add_argument('--oracle_translation', action='store_true', help='Set this flag to enable oracle translation.')
 
@@ -68,6 +69,8 @@ if __name__ == "__main__":
     cache_dir = os.path.join(project_root_path, "cache")
 
     method = args.agent + "_" + args.llm
+    if args.lang == "en":
+        method += "_en"
     if args.agent == "LLM-modulo":
         method += f"_{args.refine_steps}steps"
 
@@ -93,11 +96,12 @@ if __name__ == "__main__":
 
     kwargs = {
         "method": args.agent,
-        "env": WorldEnv(),
+        "env": WorldEnv(lang=args.lang),
         "backbone_llm": init_llm(args.llm),
         "cache_dir": cache_dir,
-        "log_dir": log_dir, 
+        "log_dir": log_dir,
         "debug": True,
+        "lang": args.lang,
     }
     agent = init_agent(kwargs)
 

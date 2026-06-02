@@ -8,26 +8,17 @@ import sys
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from poi.apis import Poi
+from chinatravel.environment.language import CITY_SLUGS, city_names, normalize_lang, relative_database_path
 
 
 class Accommodations:
 
-    def __init__(
-        self, base_path: str = "../../database/accommodations/", en_version=False
-    ):
+    def __init__(self, base_path: str = None, en_version=False, lang=None):
+        self.lang = normalize_lang(lang, en_version=en_version)
+        if base_path is None:
+            base_path = relative_database_path(self.lang, "accommodations")
         curdir = os.path.dirname(os.path.realpath(__file__))
-        city_list = [
-            "beijing",
-            "shanghai",
-            "nanjing",
-            "suzhou",
-            "hangzhou",
-            "shenzhen",
-            "chengdu",
-            "wuhan",
-            "guangzhou",
-            "chongqing",
-        ]
+        city_list = CITY_SLUGS
         data_path_list = [
             os.path.join(curdir, f"{base_path}/{city}/accommodations.csv")
             for city in city_list
@@ -42,18 +33,7 @@ class Accommodations:
                 self.key_type_tuple_list[city].append(
                     (key, type(self.data[city].iloc[0][key]))
                 )
-        city_cn_list = [
-            "北京",
-            "上海",
-            "南京",
-            "苏州",
-            "杭州",
-            "深圳",
-            "成都",
-            "武汉",
-            "广州",
-            "重庆",
-        ]
+        city_cn_list = city_names(self.lang)
 
         for i, city in enumerate(city_list):
             self.data[city_cn_list[i]] = self.data.pop(city)
@@ -61,7 +41,7 @@ class Accommodations:
                 city
             )
 
-        self.poi = Poi(en_version=en_version)
+        self.poi = Poi(lang=self.lang)
 
     def keys(self, city):
         return self.key_type_tuple_list[city]

@@ -45,11 +45,12 @@ if __name__ == "__main__":
         type=str,
         default=None
     )
-    
+
     parser.add_argument('--oracle_translation', action='store_true', help='Set this flag to enable oracle translation.')
     parser.add_argument('--preference_search', action='store_true', help='Set this flag to enable preference search.')
     parser.add_argument('--refine_steps', type=int, default=10, help='Steps for refine-based method, such as LLM-modulo, Reflection')
-    
+    parser.add_argument("--lang", "--locale", choices=["zh", "en"], default="zh", help="Language environment to load.")
+
 
     args = parser.parse_args()
 
@@ -64,6 +65,8 @@ if __name__ == "__main__":
     cache_dir = os.path.join(project_root_path, "cache")
 
     method = args.agent + "_" + args.llm
+    if args.lang == "en":
+        method += "_en"
     if args.agent == "LLM-modulo":
         method += f"_{args.refine_steps}steps"
 
@@ -97,12 +100,13 @@ if __name__ == "__main__":
         max_model_len = None
     kwargs = {
         "method": args.agent,
-        "env": WorldEnv(),
+        "env": WorldEnv(lang=args.lang),
         "backbone_llm": init_llm(args.llm, max_model_len=max_model_len),
         "cache_dir": cache_dir,
-        "log_dir": log_dir, 
+        "log_dir": log_dir,
         "debug": True,
         "refine_steps": args.refine_steps,
+        "lang": args.lang,
     }
     agent = init_agent(kwargs)
 
@@ -150,12 +154,12 @@ if __name__ == "__main__":
             )
             succ = 1
         elif args.agent in ["LLM-modulo"]:
-            
+
             succ, plan = agent.solve(query_i, prob_idx=data_idx, oracle_verifier=True)
 
         elif args.agent in ["LLMNeSy", "RuleNeSy"]:
             succ, plan = agent.run(query_i, load_cache=True, oralce_translation=args.oracle_translation, preference_search=args.preference_search)
-        
+
         elif args.agent == "TPCAgent":
             succ, plan = agent.run(query_i, prob_idx=data_idx, oralce_translation=args.oracle_translation)
 
