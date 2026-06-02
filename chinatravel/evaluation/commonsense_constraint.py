@@ -22,7 +22,17 @@ import pandas as pd
 # intercity_transport=IntercityTransport()
 # innercity_transport=Transportation()
 
-from chinatravel.symbol_verification.commonsense_constraint import Is_intercity_transport_correct, Is_attractions_correct, Is_hotels_correct, Is_restaurants_correct, Is_transport_correct, Is_time_correct, Is_space_correct
+from chinatravel.symbol_verification.commonsense_constraint import (
+    Is_intercity_transport_correct,
+    Is_attractions_correct,
+    Is_hotels_correct,
+    Is_restaurants_correct,
+    Is_transport_correct,
+    Is_time_correct,
+    Is_space_correct,
+    _infer_lang,
+    _set_tool_lang,
+)
 
 '''
 Constraints:
@@ -38,7 +48,7 @@ Available
 
 
 
-def evaluate_commonsense_constraints(data_index, symbolic_input_dict, plan_json_dict, verbose=False):
+def evaluate_commonsense_constraints(data_index, symbolic_input_dict, plan_json_dict, verbose=False, lang=None):
     # assert len(symbolic_input_list)==len(plan_json_list)
 
     func_list = [Is_intercity_transport_correct, Is_attractions_correct, Is_hotels_correct, Is_restaurants_correct, Is_transport_correct, Is_time_correct, Is_space_correct]
@@ -59,7 +69,8 @@ def evaluate_commonsense_constraints(data_index, symbolic_input_dict, plan_json_
         
 
 
-        symbolic_input, plan_json = symbolic_input_dict[idx], plan_json_dict[idx]  
+        symbolic_input, plan_json = symbolic_input_dict[idx], plan_json_dict[idx]
+        _set_tool_lang(lang or _infer_lang(symbolic_input))
         
         if verbose:
             print(symbolic_input)
@@ -153,4 +164,3 @@ if __name__ == "__main__":
     # for item in info_list:
     #     print(item)
     # print(info_list)
-

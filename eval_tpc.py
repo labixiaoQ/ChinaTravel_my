@@ -184,7 +184,7 @@ if __name__ == "__main__":
         # print("Schema Pass Rate:", schema_rate)
 
         macro_comm, micro_comm, common_result_agg, commonsense_pass_id = evaluate_commonsense_constraints(
-            query_index, query_data, result_data[method], verbose=False
+            query_index, query_data, result_data[method], verbose=False, lang=args.lang
         )
 
         # print("Commonsense constraints:")
