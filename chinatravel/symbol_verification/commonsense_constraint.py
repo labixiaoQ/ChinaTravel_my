@@ -1,4 +1,3 @@
-
 import sys
 
 
@@ -7,6 +6,8 @@ from chinatravel.environment.tools.restaurants.apis import Restaurants
 from chinatravel.environment.tools.attractions.apis import Attractions
 from chinatravel.environment.tools.intercity_transport.apis import IntercityTransport
 from chinatravel.environment.tools.transportation.apis import Transportation
+from chinatravel.environment.language import CITY_NAMES, normalize_lang
+
 # from env.tools.transportation.apis import GoTo
 # from envs import goto
 import json
@@ -15,7 +16,7 @@ import sys
 from tqdm import tqdm
 
 from chinatravel.evaluation.utils import load_json_file
-    
+
 import pandas as pd
 
 accommodation = Accommodations()
@@ -23,6 +24,45 @@ restaurants = Restaurants()
 attractions = Attractions()
 intercity_transport=IntercityTransport()
 innercity_transport=Transportation()
+_TOOLS_BY_LANG = {
+    "zh": (
+        accommodation,
+        restaurants,
+        attractions,
+        intercity_transport,
+        innercity_transport,
+    )
+}
+
+
+def _infer_lang(symbolic_input):
+    city_values = {
+        symbolic_input.get("start_city"),
+        symbolic_input.get("target_city"),
+    }
+    if city_values & set(CITY_NAMES["en"]):
+        return "en"
+    return "zh"
+
+
+def _set_tool_lang(lang):
+    global accommodation, restaurants, attractions, intercity_transport, innercity_transport
+    lang = normalize_lang(lang)
+    if lang not in _TOOLS_BY_LANG:
+        _TOOLS_BY_LANG[lang] = (
+            Accommodations(lang=lang),
+            Restaurants(lang=lang),
+            Attractions(lang=lang),
+            IntercityTransport(lang=lang),
+            Transportation(lang=lang),
+        )
+    (
+        accommodation,
+        restaurants,
+        attractions,
+        intercity_transport,
+        innercity_transport,
+    ) = _TOOLS_BY_LANG[lang]
 
 
 '''
@@ -43,7 +83,6 @@ def return_info_debug(flag, info):
 
 def return_info_test(flag, info):
     return flag
-
 
 
 def Is_intercity_transport_correct(symbolic_input, plan_json, verbose=False):
@@ -438,7 +477,7 @@ def Is_attractions_correct(symbolic_input, plan_json, verbose=False):
             print(error_info)
             print(table_statistics)
     return table_statistics, error_info
-    
+
 
 def Is_hotels_correct(symbolic_input, plan_json, verbose=False): 
 
@@ -972,12 +1011,9 @@ def Is_time_correct(symbolic_input, plan_json, verbose=False):
     return table_statistics, error_info
 
 
-
 def Is_space_correct(symbolic_input, plan_json, verbose=False): 
-    
-    
-    target_city = symbolic_input["target_city"]
 
+    target_city = symbolic_input["target_city"]
 
     table_statistics = pd.DataFrame(columns=['Invalid Transport information across positions'])
 
@@ -992,12 +1028,12 @@ def Is_space_correct(symbolic_input, plan_json, verbose=False):
     table_statistics.loc[0] = [0]
 
     plan = plan_json["itinerary"]
-    
+
     position_list = []
 
     for day_plan_i in plan:
         for activity_i in day_plan_i["activities"]:
-            
+
             if not "position" in activity_i:
                 if "start" in activity_i:
                     current_position = activity_i["start"]
@@ -1008,7 +1044,7 @@ def Is_space_correct(symbolic_input, plan_json, verbose=False):
 
             else:
                 current_position = activity_i["position"]
-                
+
             if not "transports" in activity_i:
                 # print(activity_i)
                 table_statistics.loc[0, 'Invalid Transport information across positions'] = 1
@@ -1016,9 +1052,7 @@ def Is_space_correct(symbolic_input, plan_json, verbose=False):
 
             # try: activity_i["position"] and activity_i["transports"]
             # except: return False
-            
-            
-            
+
             position_i = current_position
 
             if (len(position_list) > 0) and position_i != position_list[-1]:
@@ -1051,11 +1085,8 @@ def Is_space_correct(symbolic_input, plan_json, verbose=False):
                 position_list.append(activity_i["position"])
             else:
                 position_list.append(activity_i["end"])
-                
-
 
     # print("position_list: ", position_list)
-
 
     if verbose:
         if table_statistics.loc[0].sum() == 0:
@@ -1066,34 +1097,31 @@ def Is_space_correct(symbolic_input, plan_json, verbose=False):
     return table_statistics, error_info
 
 
+def func_commonsense_constraints(symbolic_input, plan_json, verbose=False, lang=None):
+    _set_tool_lang(lang or _infer_lang(symbolic_input))
 
-def func_commonsense_constraints(symbolic_input, plan_json, verbose=False):
-    
     func_list = [Is_intercity_transport_correct, Is_attractions_correct, Is_hotels_correct, Is_restaurants_correct, Is_transport_correct, Is_time_correct, Is_space_correct]
-    
     succ_flag = True
     error_list = []
     for func in func_list:
         table_res, error_info = func(symbolic_input, plan_json, verbose=verbose)
-        
+
         if table_res.iloc[0].sum() > 0:
             succ_flag = False
         error_list.append(error_info)
-            
-            
+
         # except Exception:
-            
+
         #     print(Exception)
-    
+
     if not succ_flag:
         print("Commonsense constraints failed!")
         for err_info in error_list:
             print(err_info)
 
     return succ_flag            
-    
-    
-    
+
+
 def evaluate_commonsense_constraints(data_index, symbolic_input_dict, plan_json_dict, verbose=False):
     # assert len(symbolic_input_list)==len(plan_json_list)
 
@@ -1196,4 +1224,3 @@ if __name__ == "__main__":
     # for item in info_list:
     #     print(item)
     # print(info_list)
-
