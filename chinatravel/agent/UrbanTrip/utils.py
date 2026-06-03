@@ -84,7 +84,7 @@ def calc_cost_from_itinerary_wo_intercity(itinerary, people_number):
             # if activity["type"] == "train":
             #     total_cost += activity.get('tickets',0)*activity.get("cost", 0)
 
-            if activity["type"] == "breakfest" or activity["type"] == "lunch" or activity["type"] == "dinner":
+            if activity["type"] == "breakfast" or activity["type"] == "lunch" or activity["type"] == "dinner":
                 total_cost += activity.get('cost', 0) * people_number
 
             # if activity["type"] == "accommodation":

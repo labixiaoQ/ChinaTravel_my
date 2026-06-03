@@ -6,8 +6,9 @@ from chinatravel.environment.tools.restaurants.apis import Restaurants
 from chinatravel.environment.tools.attractions.apis import Attractions
 from chinatravel.environment.tools.intercity_transport.apis import IntercityTransport
 from chinatravel.environment.tools.transportation.apis import Transportation
+from chinatravel.environment.language import CITY_NAMES, normalize_lang
 
-from chinatravel.symbol_verification.concept_func import func_dict
+from chinatravel.symbol_verification.concept_func import func_dict, set_concept_func_lang
 from chinatravel.evaluation.utils import load_json_file
 
 import pandas as pd
@@ -17,6 +18,32 @@ from copy import deepcopy
 accommodation = Accommodations()
 restaurants = Restaurants()
 attractions = Attractions()
+_TOOLS_BY_LANG = {
+    "zh": (accommodation, restaurants, attractions)
+}
+
+
+def _infer_lang(symbolic_input):
+    city_values = {
+        symbolic_input.get("start_city"),
+        symbolic_input.get("target_city"),
+    }
+    if city_values & set(CITY_NAMES["en"]):
+        return "en"
+    return "zh"
+
+
+def _set_tool_lang(lang):
+    global accommodation, restaurants, attractions
+    lang = normalize_lang(lang)
+    if lang not in _TOOLS_BY_LANG:
+        _TOOLS_BY_LANG[lang] = (
+            Accommodations(lang=lang),
+            Restaurants(lang=lang),
+            Attractions(lang=lang),
+        )
+    accommodation, restaurants, attractions = _TOOLS_BY_LANG[lang]
+    set_concept_func_lang(lang)
 
 
 def calc_cost_from_itinerary_wo_intercity(itinerary, people_number):
@@ -40,7 +67,7 @@ def calc_cost_from_itinerary_wo_intercity(itinerary, people_number):
                     total_cost += transport.get("tickets", 0) * transport.get("cost", 0)
 
             if (
-                activity["type"] == "breakfest"
+                activity["type"] == "breakfast"
                 or activity["type"] == "lunch"
                 or activity["type"] == "dinner"
             ):
@@ -180,7 +207,7 @@ def get_symbolic_concepts(symbolic_input, plan_json, need_ood=False):
                 continue
 
             if (
-                activity["type"] == "breakfest"
+                activity["type"] == "breakfast"
                 or activity["type"] == "lunch"
                 or activity["type"] == "dinner"
             ):
@@ -264,12 +291,12 @@ def get_symbolic_concepts(symbolic_input, plan_json, need_ood=False):
     cost_intercity_transport_missing = False
     for day in plan_json["itinerary"]:
         for activity in day["activities"]:
-            if not type in activity:
+            if "type" not in activity:
                 continue
             if activity["type"] == "attraction":
                 cost_attraction += activity.get("tickets", 0) * activity.get("cost", 0)
             if activity["type"] == "airplane" or activity["type"] == "train":
-                if "cost" in activity and "ticket" in activity:
+                if "cost" in activity and "tickets" in activity:
                     cost_intercity_transport += activity.get(
                         "tickets", 0
                     ) * activity.get("cost", 0)

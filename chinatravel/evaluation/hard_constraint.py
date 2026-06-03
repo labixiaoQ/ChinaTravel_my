@@ -12,7 +12,13 @@ import os
 
 from chinatravel.evaluation.utils import load_json_file
 
-from chinatravel.symbol_verification.hard_constraint import get_symbolic_concepts, evaluate_constraints, evaluate_constraints_py
+from chinatravel.symbol_verification.hard_constraint import (
+    get_symbolic_concepts,
+    evaluate_constraints,
+    evaluate_constraints_py,
+    _infer_lang,
+    _set_tool_lang,
+)
 
 from tqdm import tqdm
 
@@ -25,7 +31,7 @@ import pandas as pd
 
 
 
-def evaluate_hard_constraints(data_index, symbolic_input_dict, plan_json_dict, verbose=False):
+def evaluate_hard_constraints(data_index, symbolic_input_dict, plan_json_dict, verbose=False, lang=None):
     
     result_agg = pd.DataFrame(columns=['data_id', 
                                         'Trip_Days', 'Trip_People', 
@@ -47,7 +53,8 @@ def evaluate_hard_constraints(data_index, symbolic_input_dict, plan_json_dict, v
     passed_id = []
 
     for ii, idx in enumerate(data_index):
-        symbolic_input, plan_json = symbolic_input_dict[idx], plan_json_dict[idx]  
+        symbolic_input, plan_json = symbolic_input_dict[idx], plan_json_dict[idx]
+        _set_tool_lang(lang or _infer_lang(symbolic_input))
         
         extracted_vars=get_symbolic_concepts(symbolic_input, plan_json, need_ood=False)
         
@@ -132,7 +139,7 @@ def evaluate_hard_constraints(data_index, symbolic_input_dict, plan_json_dict, v
     return macro*100, micro*100, result_agg, passed_id
 
 
-def evaluate_hard_constraints_v2(data_index, symbolic_input_dict, plan_json_dict, env_pass_id, verbose=False):
+def evaluate_hard_constraints_v2(data_index, symbolic_input_dict, plan_json_dict, env_pass_id, verbose=False, lang=None):
 
 
     max_logic_num = 0
@@ -156,7 +163,8 @@ def evaluate_hard_constraints_v2(data_index, symbolic_input_dict, plan_json_dict
     passed_id = []
 
     for ii, idx in enumerate(tqdm(data_index)):
-        symbolic_input, plan_json = symbolic_input_dict[idx], plan_json_dict[idx]  
+        symbolic_input, plan_json = symbolic_input_dict[idx], plan_json_dict[idx]
+        _set_tool_lang(lang or _infer_lang(symbolic_input))
         result_ii = evaluate_constraints_py(symbolic_input["hard_logic_py"], plan_json, verbose=verbose)
         results.append(result_ii)
 

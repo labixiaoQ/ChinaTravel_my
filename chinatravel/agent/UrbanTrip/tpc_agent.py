@@ -62,7 +62,7 @@ class UrbanTrip(BaseAgent):
         self.memory = {}
         self.TIME_CUT = 60 * 5 - 10
         self.debug = kwargs.get("debug", False)
-        self.poi_search = Poi()
+        self.poi_search = Poi(lang=kwargs.get("lang"))
 
         self.visited_attractions = set()
         self.visited_restaurants = set()

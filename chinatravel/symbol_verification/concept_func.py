@@ -1,6 +1,33 @@
 from chinatravel.environment.tools.accommodations.apis import Accommodations
 from chinatravel.environment.tools.restaurants.apis import Restaurants
 from chinatravel.environment.tools.attractions.apis import Attractions
+from chinatravel.environment.language import CITY_NAMES, normalize_lang
+
+
+_current_lang = "zh"
+_TOOLS_BY_LANG = {}
+
+
+def _infer_lang_from_city(city):
+    if city in CITY_NAMES["en"]:
+        return "en"
+    return _current_lang
+
+
+def _tools_for_lang(lang=None):
+    lang = normalize_lang(lang or _current_lang)
+    if lang not in _TOOLS_BY_LANG:
+        _TOOLS_BY_LANG[lang] = {
+            "accommodations": Accommodations(lang=lang),
+            "restaurants": Restaurants(lang=lang),
+            "attractions": Attractions(lang=lang),
+        }
+    return _TOOLS_BY_LANG[lang]
+
+
+def set_concept_func_lang(lang=None):
+    global _current_lang
+    _current_lang = normalize_lang(lang)
 
 
 def day_count(plan):
@@ -85,7 +112,7 @@ def activity_time(activity):
 
 
 def poi_recommend_time(city, poi):
-    select = Attractions().select
+    select = _tools_for_lang(_infer_lang_from_city(city))["attractions"].select
     attrction_info = select(city, key="name", func=lambda x: x == poi).iloc[0]
     recommend_time = (attrction_info["recommendmintime"]) * 60
     return recommend_time
@@ -94,7 +121,7 @@ def poi_recommend_time(city, poi):
 def poi_distance(city, poi1, poi2, start_time="00:00", transport_type="walk"):
     from chinatravel.environment.tools.transportation.apis import Transportation
 
-    goto = Transportation().goto
+    goto = Transportation(lang=_infer_lang_from_city(city)).goto
     return goto(city, poi1, poi2, start_time, transport_type)[0]["distance"]
 
 
@@ -170,9 +197,7 @@ def room_type(activity):
 
 
 def restaurant_type(activity, target_city):
-    from chinatravel.environment.tools.restaurants.apis import Restaurants
-
-    restaurants = Restaurants()
+    restaurants = _tools_for_lang(_infer_lang_from_city(target_city))["restaurants"]
     select_food_type = restaurants.select(
         target_city, key="name", func=lambda x: x == activity["position"]
     )["cuisine"]
@@ -182,9 +207,7 @@ def restaurant_type(activity, target_city):
 
 
 def attraction_type(activity, target_city):
-    from chinatravel.environment.tools.attractions.apis import Attractions
-
-    attractions = Attractions()
+    attractions = _tools_for_lang(_infer_lang_from_city(target_city))["attractions"]
     select_attr_type = attractions.select(
         target_city, key="name", func=lambda x: x == activity["position"]
     )["type"]
@@ -194,9 +217,7 @@ def attraction_type(activity, target_city):
 
 
 def accommodation_type(activity, target_city):
-    from chinatravel.environment.tools.accommodations.apis import Accommodations
-
-    accommodations = Accommodations()
+    accommodations = _tools_for_lang(_infer_lang_from_city(target_city))["accommodations"]
     select_hotel_type = accommodations.select(
         target_city, key="name", func=lambda x: x == activity["position"]
     )["featurehoteltype"]

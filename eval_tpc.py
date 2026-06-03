@@ -195,7 +195,7 @@ if __name__ == "__main__":
 
         # print("Logical constraints (python version):")
         macro_logi, micro_logi, conditional_macro_logi, conditional_micro_logi, logi_result_agg, logi_pass_id = evaluate_hard_constraints_v2(
-            query_index, query_data, result_data[method], env_pass_id=commonsense_pass_id, verbose=False
+            query_index, query_data, result_data[method], env_pass_id=commonsense_pass_id, verbose=False, lang=args.lang
         )
 
 
