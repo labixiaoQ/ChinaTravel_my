@@ -291,7 +291,7 @@ def get_symbolic_concepts(symbolic_input, plan_json, need_ood=False):
     cost_intercity_transport_missing = False
     for day in plan_json["itinerary"]:
         for activity in day["activities"]:
-            if not type in activity:
+            if "type" not in activity:
                 continue
             if activity["type"] == "attraction":
                 cost_attraction += activity.get("tickets", 0) * activity.get("cost", 0)
