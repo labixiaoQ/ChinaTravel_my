@@ -189,6 +189,7 @@ if __name__ == "__main__":
                 query_data,
                 result_data[method],
                 list(set(commonsense_pass_id) & set(logi_pass_id)),
+                lang=args.lang,
             )
 
             res_file = "eval_res/splits_{}/{}/preference.csv".format(
