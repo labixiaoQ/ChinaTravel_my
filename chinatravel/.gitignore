@@ -3,9 +3,12 @@ environment/database_en/*
 local_llm/*
 data/*
 !data/load_datasets.py
+!data/TPC_IJCAI_2026_phase1_EN/
+!data/TPC_IJCAI_2026_phase1_EN/**
 # !data/en/
 # !data/en/**
 evaluation/default_splits/*
 !evaluation/default_splits/easy.txt
 !evaluation/default_splits/medium.txt
 !evaluation/default_splits/human.txt
+!evaluation/default_splits/TPC_IJCAI_2026_phase1.txt
