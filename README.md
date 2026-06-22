@@ -27,6 +27,47 @@ We are proud to announce that ChinaTravel has been selected as the official benc
 
 Participants are invited to develop novel agentic system that can tackle real-world travel planning scenarios under practical requirements. This competition will showcase state-of-the-art approaches in agentic AI research.
 
+### Local TPC@IJCAI 2026 baseline
+
+The phase-1 English queries are loaded from
+`chinatravel/data/TPC_IJCAI_2026_phase1_EN/` through the
+`TPC_IJCAI_2026_phase1` split. Put the official English environment database in
+`chinatravel/environment/database_en/` (the database directory is intentionally
+ignored by Git).
+
+Run one query with the included UrbanTrip baseline:
+
+```bash
+python run_tpc2026.py --index 20250320174446059265
+```
+
+List all registered legacy agents or select one explicitly:
+
+```bash
+python run_tpc2026.py --list-agents
+python run_tpc2026.py --agent UrbanTrip --limit 10 --skip
+```
+
+Score only the outputs currently present (useful during development):
+
+```bash
+python eval_tpc_partial.py --method UrbanTrip_TPCLLM_en_oracletranslation
+```
+
+This reports both the partial score and split coverage. Use `eval_tpc.py` for
+the official full-split score.
+
+The TPC2026 defaults are English, `UrbanTrip`, `TPCLLM`, and exposing
+`hard_logic_py`. Use `--no-oracle_translation` when testing an agent without the
+provided hard logic. To query the English environment directly:
+
+```bash
+python -m agent_env.cli --lang en call attractions_keys '{"city":"Chengdu"}'
+```
+
+See [agent_env/README.md](agent_env/README.md) for CLI, HTTP, and stdio/MCP-style
+integration.
+
 
 ## 🏆 IJCAI 2025 Travel Planning Challenge (TPC@IJCAI)
 

@@ -104,8 +104,8 @@ def _schema(required: list[str], properties: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-CITY = {"type": "string", "description": "Chinese city name, e.g. 上海, 北京"}
-POINT = {"type": "string", "description": "POI name; must match ChinaTravel data"}
+CITY = {"type": "string", "description": "City name matching the selected environment language"}
+POINT = {"type": "string", "description": "POI name matching the selected environment language and data"}
 TIME = {"type": "string", "description": "HH:MM"}
 TOPK = {"type": "integer", "default": 10, "minimum": 1}
 DIST = {"type": "number", "default": 2}
@@ -152,7 +152,7 @@ TOOL_SPECS: dict[str, ToolSpec] = {
             {
                 "split": {"type": "string"},
                 "uid": {"type": "string"},
-                "oracle_translation": {"type": "boolean", "default": False},
+                "oracle_translation": {"type": "boolean", "default": True},
             },
         ),
     ),
@@ -289,7 +289,12 @@ TOOL_SPECS: dict[str, ToolSpec] = {
 
 
 class ChinaTravelEnvAdapter:
-    def __init__(self) -> None:
+    def __init__(self, lang: str = "zh", include_hard_logic: bool = True) -> None:
+        _ensure_project_on_path()
+        from chinatravel.environment.language import normalize_lang
+
+        self.lang = normalize_lang(lang)
+        self.include_hard_logic = include_hard_logic
         self._env: Any | None = None
 
     def list_tools(self) -> list[dict[str, Any]]:
@@ -335,7 +340,8 @@ class ChinaTravelEnvAdapter:
             result["command"] = command
             result["hint"] = (
                 "Install requirements and download the ChinaTravel database into "
-                "chinatravel/environment/database if this is an initialization error."
+                f"chinatravel/environment/{'database_en' if self.lang == 'en' else 'database'} "
+                "if this is an initialization error."
             )
             return result
 
@@ -351,13 +357,19 @@ class ChinaTravelEnvAdapter:
         self,
         split: str,
         uid: str | None = None,
-        oracle_translation: bool = False,
+        oracle_translation: bool | None = None,
     ) -> dict[str, Any]:
         try:
             _ensure_project_on_path()
             from chinatravel.data.load_datasets import load_query
 
-            args = argparse.Namespace(splits=split, oracle_translation=oracle_translation)
+            if oracle_translation is None:
+                oracle_translation = self.include_hard_logic
+            args = argparse.Namespace(
+                splits=split,
+                lang=self.lang,
+                oracle_translation=oracle_translation,
+            )
             query_ids, query_data = load_query(args)
             if uid is not None:
                 if uid not in query_data:
@@ -365,12 +377,14 @@ class ChinaTravelEnvAdapter:
                 return {
                     "success": True,
                     "split": split,
+                    "lang": self.lang,
                     "query_ids": [uid],
                     "query": _jsonable(query_data[uid]),
                 }
             return {
                 "success": True,
                 "split": split,
+                "lang": self.lang,
                 "query_ids": query_ids,
                 "query_count": len(query_ids),
             }
@@ -382,7 +396,7 @@ class ChinaTravelEnvAdapter:
             _ensure_project_on_path()
             from chinatravel.environment.world_env import WorldEnv
 
-            self._env = WorldEnv()
+            self._env = WorldEnv(lang=self.lang)
         return self._env
 
     def _env_output_to_dict(self, output: Any, *, command: str) -> dict[str, Any]:
@@ -403,4 +417,3 @@ class ChinaTravelEnvAdapter:
 
 def dumps_result(result: dict[str, Any]) -> str:
     return json.dumps(result, ensure_ascii=False, indent=2)
-

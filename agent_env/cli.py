@@ -19,9 +19,9 @@ HELP_TEXT = """Commands:
   quit
 
 Examples:
-  call attractions_keys {"city":"上海"}
-  call attractions_nearby {"city":"上海","point":"上海迪士尼度假区","topk":5,"dist":5}
-  world attractions_keys('上海')
+  call attractions_keys {"city":"Shanghai"}
+  call attractions_nearby {"city":"Shanghai","point":"The Bund","topk":5,"dist":5}
+  world attractions_keys('Shanghai')
 """
 
 
@@ -97,6 +97,9 @@ def run_repl(adapter: ChinaTravelEnvAdapter) -> int:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Call ChinaTravel agent environment tools.")
+    parser.add_argument(
+        "--lang", choices=["zh", "en"], default="zh", help="Environment language."
+    )
     subparsers = parser.add_subparsers(dest="command")
 
     subparsers.add_parser("tools", help="List available tools.")
@@ -109,14 +112,14 @@ def main() -> None:
         "arguments",
         nargs="?",
         default="{}",
-        help='JSON object arguments, e.g. \'{"city":"上海"}\'.',
+        help='JSON object arguments, e.g. \'{"city":"Shanghai"}\'.',
     )
 
     world_parser = subparsers.add_parser("world", help="Call the raw WorldEnv command surface.")
     world_parser.add_argument("world_command", help="WorldEnv command string.")
 
     args = parser.parse_args()
-    adapter = ChinaTravelEnvAdapter()
+    adapter = ChinaTravelEnvAdapter(lang=args.lang)
 
     try:
         if args.command is None or args.command == "repl":

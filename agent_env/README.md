@@ -20,11 +20,13 @@ modifying the benchmark package. Official running and evaluation scripts such as
 
 ## Prerequisites
 
-Install the original project requirements and download the official database as usual:
+Install the original project requirements and place the official Chinese and English
+databases in their language-specific directories:
 
 ```bash
 pip install -r requirements.txt
-# unzip the database to chinatravel/environment/database/
+# Chinese: chinatravel/environment/database/
+# English: chinatravel/environment/database_en/
 ```
 
 The wrapper itself can start without those dependencies, but environment tool calls will
@@ -35,7 +37,7 @@ return initialization errors until the official prerequisites are present.
 Configure the agent client to run:
 
 ```bash
-python -m agent_env.mcp_stdio
+python -m agent_env.mcp_stdio --lang en
 ```
 
 The server exposes tools such as:
@@ -57,25 +59,25 @@ advanced query needs the original `WorldEnv` command-string surface.
 List available tools:
 
 ```bash
-python -m agent_env.cli tools
+python -m agent_env.cli --lang en tools
 ```
 
 Call a structured tool:
 
 ```bash
-python -m agent_env.cli call attractions_keys '{"city":"上海"}'
+python -m agent_env.cli --lang en call attractions_keys '{"city":"Shanghai"}'
 ```
 
 Call the original command-string interface:
 
 ```bash
-python -m agent_env.cli world "attractions_keys('上海')"
+python -m agent_env.cli --lang en world "attractions_keys('Shanghai')"
 ```
 
 Start an interactive prompt:
 
 ```bash
-python -m agent_env.cli
+python -m agent_env.cli --lang en
 ```
 
 Inside the prompt:
@@ -83,8 +85,8 @@ Inside the prompt:
 ```text
 tools
 splits
-call attractions_nearby {"city":"上海","point":"上海迪士尼度假区","topk":5,"dist":5}
-world attractions_keys('上海')
+call attractions_nearby {"city":"Shanghai","point":"Shanghai Disney Resort","topk":5,"dist":5}
+world attractions_keys('Shanghai')
 quit
 ```
 
@@ -148,7 +150,7 @@ JSONL events, and extract final text into `output.txt`; Codex runs use
 Start the local server:
 
 ```bash
-python -m agent_env.http_server --host 127.0.0.1 --port 8765
+python -m agent_env.http_server --lang en --host 127.0.0.1 --port 8765
 ```
 
 List tools:
@@ -162,7 +164,7 @@ Call a tool:
 ```bash
 curl -X POST http://127.0.0.1:8765/call \
   -H 'Content-Type: application/json' \
-  -d '{"tool":"attractions_keys","arguments":{"city":"上海"}}'
+  -d '{"tool":"attractions_keys","arguments":{"city":"Shanghai"}}'
 ```
 
 Call the original command-string interface:
@@ -170,7 +172,7 @@ Call the original command-string interface:
 ```bash
 curl -X POST http://127.0.0.1:8765/world-command \
   -H 'Content-Type: application/json' \
-  -d '{"command":"attractions_keys(\"上海\")"}'
+  -d '{"command":"attractions_keys(\"Shanghai\")"}'
 ```
 
 ## Boundary

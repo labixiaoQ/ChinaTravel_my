@@ -151,12 +151,12 @@ def write_file(file, content):
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--splits", "-s", type=str, default="example")
+    parser.add_argument("--splits", "-s", type=str, default="TPC_IJCAI_2026_phase1")
     parser.add_argument(
         "--method", "-m", type=str, default="travel_agent"
     )  # , choices=METHOD_LIST)
     parser.add_argument("--preference", "-p", action="store_true", default=False)
-    parser.add_argument("--lang", "--locale", choices=["zh", "en"], default="zh")
+    parser.add_argument("--lang", "--locale", choices=["zh", "en"], default="en")
     args = parser.parse_args()
     if args.lang == "en" and not _method_has_en_suffix(args.method):
         args.method += "_en"

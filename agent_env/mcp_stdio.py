@@ -6,6 +6,7 @@ used by MCP clients: initialize, tools/list, tools/call, and ping.
 
 from __future__ import annotations
 
+import argparse
 import json
 import sys
 from typing import Any
@@ -60,6 +61,12 @@ def _handle(message: dict[str, Any]) -> dict[str, Any] | None:
 
 
 def main() -> None:
+    global ADAPTER
+    parser = argparse.ArgumentParser(description="Run the ChinaTravel MCP stdio bridge.")
+    parser.add_argument("--lang", choices=["zh", "en"], default="zh")
+    args = parser.parse_args()
+    ADAPTER = ChinaTravelEnvAdapter(lang=args.lang)
+
     for line in sys.stdin:
         line = line.strip()
         if not line:
@@ -75,4 +82,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

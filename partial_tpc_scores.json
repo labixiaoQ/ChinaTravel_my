@@ -1,0 +1,19 @@
+{
+  "mode": "partial",
+  "method": "UrbanTrip_TPCLLM_en_oracletranslation",
+  "split": "TPC_IJCAI_2026_phase1",
+  "evaluated_count": 10,
+  "split_count": 1000,
+  "coverage_percent": 1.0,
+  "all_pass_count": 9,
+  "scores": {
+    "MicEPR": 100.0,
+    "MacEPR": 100.0,
+    "C-LPR": 98.0,
+    "FPR": 90.0,
+    "DAV": 72.22222222222221,
+    "ATT": 77.54298750539351,
+    "DDR": 71.60493827160495,
+    "overall": 91.56850739996104
+  }
+}

@@ -55,16 +55,22 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def main() -> None:
+    global ADAPTER
     parser = argparse.ArgumentParser(description="Run ChinaTravel agent HTTP environment.")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8765)
+    parser.add_argument("--lang", choices=["zh", "en"], default="zh")
     args = parser.parse_args()
 
+    ADAPTER = ChinaTravelEnvAdapter(lang=args.lang)
     server = ThreadingHTTPServer((args.host, args.port), Handler)
-    print(f"ChinaTravel agent HTTP env listening on http://{args.host}:{args.port}", flush=True)
+    print(
+        f"ChinaTravel agent HTTP env ({args.lang}) listening on "
+        f"http://{args.host}:{args.port}",
+        flush=True,
+    )
     server.serve_forever()
 
 
 if __name__ == "__main__":
     main()
-
